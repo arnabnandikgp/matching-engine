@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use arcium_anchor::prelude::*;
+use arcium_anchor::prelude::*;  
+// use arcium_anchor::prelude::*;
 
 const COMP_DEF_OFFSET_MATCH_ORDERS: u32 = comp_def_offset("match_orders");
 
@@ -16,13 +17,13 @@ pub use errors::*;
 pub mod matching_engine {
     use super::*;
 
+    // pub fn init_match_orders_comp_def(ctx: Context<InitMatchOrdersCompDef>) -> Result<()> {
+    //     init_comp_def(ctx.accounts, true, 0, None, None)?;
+    //     Ok(())
+    // }
+
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         instructions::initialize(ctx)?;
-        Ok(())
-    }
-
-    pub fn init_comp_def(ctx: Context<InitCompDef>) -> Result<()> {
-        instructions::init_match_orders_comp_def(ctx)?;
         Ok(())
     }
 
@@ -51,3 +52,19 @@ pub enum ErrorCode {
     #[msg("Cluster not set")]
     ClusterNotSet,
 }
+
+
+
+// #[init_computation_definition_accounts("match_orders", payer)]
+// #[derive(Accounts)]
+// pub struct InitMatchOrdersCompDef<'info> {
+//     #[account(mut)]
+//     pub payer: Signer<'info>,
+//     #[account(mut, address = derive_mxe_pda!())]
+//     pub mxe_account: Box<Account<'info, MXEAccount>>,
+//     /// CHECK: comp_def_account, checked by the arcium program.
+//     #[account(mut)]
+//     pub comp_def_account: UncheckedAccount<'info>,
+//     pub arcium_program: Program<'info, Arcium>,
+//     pub system_program: Program<'info, System>,
+// }

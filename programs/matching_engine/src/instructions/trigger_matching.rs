@@ -1,7 +1,14 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::clock::Clock;
-use crate::errors::ErrorCode;
 use arcium_anchor::prelude::*;
+use crate::errors::ErrorCode;
+use crate::states::OrderBook;
+use crate::instructions::*;
+use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
+use crate::SignerAccount;
+
+const ORDER_BOOK_SEED: &[u8] = b"order_book";
+use crate::ID;
+use crate::ID_CONST;
 
 
 pub fn trigger_matching(
@@ -81,3 +88,12 @@ pub struct TriggerMatching<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
 }
+
+// pub struct MatchOrdersCallback<'info> {
+//     pub arcium_program: Program<'info, Arcium>,
+//     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_MATCH_ORDERS))]
+//     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+//     #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
+//     /// CHECK: instructions_sysvar, checked by the account constraint
+//     pub instructions_sysvar: AccountInfo<'info>,
+// }
