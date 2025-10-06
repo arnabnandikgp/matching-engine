@@ -9,3 +9,6 @@ pub use deposit::*;
 
 pub mod arcium;
 pub use arcium::*;
+
+pub mod submit_order;
+pub use submit_order::*;
