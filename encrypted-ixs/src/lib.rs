@@ -1,9 +1,6 @@
 use arcis_imports::*;
 
-
-/// the vault of the escrow account will have the following seeds:
-
-#[encrypted]
+#[encrypted(network = "localnet")]
 mod circuits {
     use arcis_imports::*;
 
@@ -52,6 +49,271 @@ mod circuits {
         pub sell_count: usize,
     }
 
+    impl OrderBook {
+        pub fn new() -> Self {
+            OrderBook {
+                buy_orders: [Order::empty(); MAX_ORDERS],
+                buy_count: 0,
+                sell_orders: [Order::empty(); MAX_ORDERS],
+                sell_count: 0,
+            }
+        }
+
+        pub fn insert_buy(&mut self, order: Order) -> bool {
+            let success = if self.buy_count >= MAX_ORDERS {
+                false
+            } else {
+                self.buy_orders[self.buy_count] = order;
+                self.buy_count += 1;
+                
+                let mut i = self.buy_count - 1;
+                let mut done = false;
+                for _ in 0..MAX_ORDERS {
+                    if i == 0 || done {
+                        done = true;
+                    } else {
+                        let parent = (i - 1) / 2;
+                        if self.compare_buy(i, parent) {
+                            self.buy_orders.swap(i, parent);
+                            i = parent;
+                        } else {
+                            done = true;
+                        }
+                    }
+                }
+                
+                true
+            };
+            success
+        }
+
+        pub fn insert_sell(&mut self, order: Order) -> bool {
+            let success = if self.sell_count >= MAX_ORDERS {
+                false
+            } else {
+                self.sell_orders[self.sell_count] = order;
+                self.sell_count += 1;
+                
+                let mut i = self.sell_count - 1;
+                let mut done = false;
+                for _ in 0..MAX_ORDERS {
+                    if i == 0 || done {
+                        done = true;
+                    } else {
+                        let parent = (i - 1) / 2;
+                        if self.compare_sell(i, parent) {
+                            self.sell_orders.swap(i, parent);
+                            i = parent;
+                        } else {
+                            done = true;
+                        }
+                    }
+                }
+                
+                true
+            };
+            success
+        }
+
+        fn compare_buy(&self, i: usize, j: usize) -> bool {
+            let a = &self.buy_orders[i];
+            let b = &self.buy_orders[j];
+            
+            if a.price != b.price {
+                a.price > b.price
+            } else {
+                a.timestamp < b.timestamp
+            }
+        }
+
+        fn compare_sell(&self, i: usize, j: usize) -> bool {
+            let a = &self.sell_orders[i];
+            let b = &self.sell_orders[j];
+            
+            if a.price != b.price {
+                a.price < b.price
+            } else {
+                a.timestamp < b.timestamp
+            }
+        }
+
+        fn heapify_buy(&mut self, mut i: usize) {
+            let mut done = false;
+            for _ in 0..MAX_ORDERS {
+                if done {
+                    // continue looping until done
+                } else {
+                    let left = 2 * i + 1;
+                    let right = 2 * i + 2;
+                    let mut largest = i;
+
+                    if left < self.buy_count && self.compare_buy(left, largest) {
+                        largest = left;
+                    }
+
+                    if right < self.buy_count && self.compare_buy(right, largest) {
+                        largest = right;
+                    }
+
+                    if largest != i {
+                        self.buy_orders.swap(i, largest);
+                        i = largest;
+                    } else {
+                        done = true;
+                    }
+                }
+            }
+        }
+
+        fn heapify_sell(&mut self, mut i: usize) {
+            let mut done = false;
+            for _ in 0..MAX_ORDERS {
+                if done {
+                    // continue looping until done
+                } else {
+                    let left = 2 * i + 1;
+                    let right = 2 * i + 2;
+                    let mut smallest = i;
+
+                    if left < self.sell_count && self.compare_sell(left, smallest) {
+                        smallest = left;
+                    }
+
+                    if right < self.sell_count && self.compare_sell(right, smallest) {
+                        smallest = right;
+                    }
+
+                    if smallest != i {
+                        self.sell_orders.swap(i, smallest);
+                        i = smallest;
+                    } else {
+                        done = true;
+                    }
+                }
+            }
+        }
+
+        pub fn pop_buy(&mut self) -> Option<Order> {
+            let result = if self.buy_count == 0 {
+                None
+            } else {
+                let order = self.buy_orders[0];
+                self.buy_count -= 1;
+
+                if self.buy_count > 0 {
+                    self.buy_orders[0] = self.buy_orders[self.buy_count];
+                    self.heapify_buy(0);
+                }
+
+                Some(order)
+            };
+            result
+        }
+
+        pub fn pop_sell(&mut self) -> Option<Order> {
+            let result = if self.sell_count == 0 {
+                None
+            } else {
+                let order = self.sell_orders[0];
+                self.sell_count -= 1;
+
+                if self.sell_count > 0 {
+                    self.sell_orders[0] = self.sell_orders[self.sell_count];
+                    self.heapify_sell(0);
+                }
+
+                Some(order)
+            };
+            result
+        }
+
+        pub fn peek_buy(&self) -> Order {
+            if self.buy_count > 0 {
+                self.buy_orders[0]
+            } else {
+                Order::empty()
+            }
+        }
+
+        pub fn peek_sell(&self) -> Order {
+            if self.sell_count > 0 {
+                self.sell_orders[0]
+            } else {
+                Order::empty()
+            }
+        }
+        
+        pub fn has_buy(&self) -> bool {
+            self.buy_count > 0
+        }
+        
+        pub fn has_sell(&self) -> bool {
+            self.sell_count > 0
+        }
+    }
+
+    #[derive(Copy, Clone)]
+    pub struct MatchedOrder {
+        pub match_id: u64,
+        pub buyer_id: [u8; 32],
+        pub seller_id: [u8; 32],
+        pub base_mint: [u8; 32],
+        pub quote_mint: [u8; 32],
+        pub quantity: u64,
+        pub execution_price: u64,
+    }
+
+    impl MatchedOrder {
+        pub fn empty() -> Self {
+            MatchedOrder {
+                match_id: 0,
+                buyer_id: [0u8; 32],
+                seller_id: [0u8; 32],
+                base_mint: [0u8; 32],
+                quote_mint: [0u8; 32],
+                quantity: 0,
+                execution_price: 0,
+            }
+        }
+    }
+
+    pub struct MatchResult {
+        pub matches: [MatchedOrder; MAX_MATCHES_PER_BATCH],
+        pub num_matches: u64,
+        pub match_ids: [[u8; 32]; MAX_MATCHES_PER_BATCH],
+        pub buyer_ids: [[u8; 32]; MAX_MATCHES_PER_BATCH],
+        pub seller_ids: [[u8; 32]; MAX_MATCHES_PER_BATCH],
+        pub base_mints: [[u8; 32]; MAX_MATCHES_PER_BATCH],
+        pub quote_mints: [[u8; 32]; MAX_MATCHES_PER_BATCH],
+        pub quantities: [u64; MAX_MATCHES_PER_BATCH],
+        pub execution_prices: [u64; MAX_MATCHES_PER_BATCH],
+    }
+
+    // Note: Without static mut support, we create a new OrderBook for each call
+    // In production, you would need to persist order book state on-chain
+    fn get_order_book() -> OrderBook {
+        OrderBook::new()
+    }
+
+    #[instruction]
+    pub fn submit_order(
+        order_id: u64,
+        timestamp: u64,
+        encrypted_order_ctxt: Enc<Shared, Order>,
+    ) -> Enc<Shared, bool> {
+        let mut order = encrypted_order_ctxt.to_arcis();
+        order.order_id = order_id;
+        order.timestamp = timestamp;
+
+        let mut order_book = get_order_book();
+        let success = if order.is_buy() {
+            order_book.insert_buy(order)
+        } else {
+            order_book.insert_sell(order)
+        };
+
+        encrypted_order_ctxt.owner.from_arcis(success)
+    }
 
     #[instruction]
     pub fn match_orders(_input_ctxt: Enc<Shared, u8>) -> Enc<Shared, MatchResult> {
@@ -157,5 +419,15 @@ mod circuits {
         result
     }
 
-    
+    #[instruction]
+    pub fn add_together(input_ctxt: Enc<Shared, InputValues>) -> Enc<Shared, u16> {
+        let input = input_ctxt.to_arcis();
+        let sum = input.v1 as u16 + input.v2 as u16;
+        input_ctxt.owner.from_arcis(sum)
+    }
+
+    pub struct InputValues {
+        v1: u8,
+        v2: u8,
+    }
 }
