@@ -1,0 +1,9 @@
+[package]
+name = "encrypted-ixs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arcis-imports = "0.3.0"
+anchor-lang =  "0.31.1"
+
