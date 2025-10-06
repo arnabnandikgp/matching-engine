@@ -9,6 +9,8 @@ pub mod instructions;
 pub mod states;
 pub use instructions::*;
 pub use states::*;
+pub mod errors;
+pub use errors::*;
 
 #[arcium_program]
 pub mod matching_engine {
