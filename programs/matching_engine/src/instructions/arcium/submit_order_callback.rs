@@ -1,24 +1,7 @@
 use arcium_anchor::prelude::*;
 use anchor_lang::prelude::*;
-use crate::validate_callback_ixs;
 use crate::ID_CONST;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
-use crate::errors::ErrorCode;
-
-#[arcium_callback(encrypted_ix = "submit_order", network = "localnet")]
-pub fn submit_order_callback(
-    ctx: Context<SubmitOrderCallback>,
-    output: ComputationOutputs<SubmitOrderOutput>,
-) -> Result<()> {
-    let _result = match output {
-        ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => field_0,
-        _ => return Err(ErrorCode::AbortedComputation.into()),
-    };
-
-    Ok(())
-}
-
-
 #[callback_accounts("submit_order")]
 #[derive(Accounts)]
 pub struct SubmitOrderCallback<'info> {

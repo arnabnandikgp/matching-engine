@@ -1,46 +1,7 @@
 use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
-use crate::errors::ErrorCode;
 use crate::ID_CONST;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
-use crate::validate_callback_ixs;
-
-
-#[arcium_callback(encrypted_ix = "match_orders", network = "localnet")]
-pub fn match_orders_callback(
-    ctx: Context<MatchOrdersCallback>,
-    output: ComputationOutputs<MatchOrdersOutput>,
-) -> Result<()> {
-    let matches = match output {
-        ComputationOutputs::Success(MatchOrdersOutput { field_0 }) => field_0,
-        _ => return Err(ErrorCode::AbortedComputation.into()),
-    };
-
-
-    // for i in 0..matches.num_matches as usize {
-    //     if i >= 10 {
-    //         break;
-    //     }
-
-    //     let buyer_id = Pubkey::new_from_array(matches.buyer_ids[i]);
-    //     let seller_id = Pubkey::new_from_array(matches.seller_ids[i]);
-    //     let base_mint = Pubkey::new_from_array(matches.base_mints[i]);
-    //     let quote_mint = Pubkey::new_from_array(matches.quote_mints[i]);
-        
-    //     emit!(TradeExecutedEvent {
-    //         match_id: matches.match_ids[i],
-    //         buyer: buyer_id,
-    //         seller: seller_id,
-    //         base_mint,
-    //         quote_mint,
-    //         quantity: matches.quantities[i],
-    //         execution_price: matches.execution_prices[i],
-    //     });
-    // }
-
-    Ok(())
-}
-
 
 #[callback_accounts("match_orders")]
 #[derive(Accounts)]
@@ -52,7 +13,6 @@ pub struct MatchOrdersCallback<'info> {
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: AccountInfo<'info>,
 }
-
 
 #[event]
 pub struct TradeExecutedEvent {

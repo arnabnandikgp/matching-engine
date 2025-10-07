@@ -1,12 +1,6 @@
 use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
 use crate::ID;
-
-pub fn init_match_orders_comp_def(ctx: Context<InitMatchOrdersCompDef>) -> Result<()> {
-    init_comp_def(ctx.accounts, true, 0, None, None)?;
-    Ok(())
-}
-
 #[init_computation_definition_accounts("match_orders", payer)]
 #[derive(Accounts)]
 pub struct InitMatchOrdersCompDef<'info> {
