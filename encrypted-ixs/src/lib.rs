@@ -290,7 +290,7 @@ mod circuits {
     }
 
     // Note: Without static mut support, we create a new OrderBook for each call
-    // In production, you would need to persist order book state on-chain
+    // In production, we would need to persist order book state on-chain
     fn get_order_book() -> OrderBook {
         OrderBook::new()
     }
@@ -417,17 +417,5 @@ mod circuits {
         result[6] = bytes[6];
         result[7] = bytes[7];
         result
-    }
-
-    #[instruction]
-    pub fn add_together(input_ctxt: Enc<Shared, InputValues>) -> Enc<Shared, u16> {
-        let input = input_ctxt.to_arcis();
-        let sum = input.v1 as u16 + input.v2 as u16;
-        input_ctxt.owner.from_arcis(sum)
-    }
-
-    pub struct InputValues {
-        v1: u8,
-        v2: u8,
     }
 }
