@@ -18,3 +18,6 @@ pub use withdraw::*;
 
 pub mod initialize_vault;
 pub use initialize_vault::*;
+
+pub mod execute_settlement;
+pub use execute_settlement::*;

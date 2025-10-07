@@ -68,7 +68,12 @@ pub mod matching_engine {
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
 
-        // TODO: Handle matches
+        emit!(EncryptedMatchesEvent {
+            computation_offset: ctx.accounts.comp_def_account.key(),
+            ciphertext: matches.ciphertexts,  // Raw encrypted bytes
+            nonce: matches.nonce,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
 
         Ok(())
     }
@@ -98,6 +103,11 @@ pub mod matching_engine {
 
     pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
         instructions::withdraw_from_vault(ctx, amount)?;
+        Ok(())
+    }
+
+    pub fn execute_settlement(ctx: Context<ExecuteSettlement>, match_id: u64, quantity: u64, execution_price: u64) -> Result<()> {
+        instructions::execute_settlement(ctx, match_id, quantity, execution_price)?;
         Ok(())
     }
 }
