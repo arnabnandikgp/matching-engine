@@ -13,7 +13,7 @@ pub fn execute_settlement(
     quantity: u64,
     execution_price: u64,
 ) -> Result<()> {
-    // Verify settlement authority (bot)
+    // Verify settlement authority (settlement bot)
     require!(
         ctx.accounts.settlement_authority.key() == SETTLEMENT_BOT_PUBKEY,
         ErrorCode::UnauthorizedSettlement
@@ -67,7 +67,6 @@ pub fn execute_settlement(
         quote_amount,
     )?;
     
-    // Mark as settled
     ctx.accounts.match_record.is_settled = true;
     ctx.accounts.match_record.settlement_timestamp = Clock::get()?.unix_timestamp;
     
@@ -87,8 +86,9 @@ pub fn execute_settlement(
 #[instruction(match_id: u64)]
 pub struct ExecuteSettlement<'info> {
     #[account(mut)]
-    pub settlement_authority: Signer<'info>,  // Authorized bot
-    
+    pub settlement_authority: Signer<'info>,  
+
+    /// CHECK: PDA authority for vault
     #[account(
         seeds = [b"vault_authority"],
         bump,
