@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use crate::states::DepositToVault;
+
+const VAULT_SEED: &[u8] = b"vault";
 
 pub fn deposit_to_vault(
     ctx: Context<DepositToVault>,
