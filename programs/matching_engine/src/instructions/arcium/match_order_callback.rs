@@ -15,12 +15,9 @@ pub struct MatchOrdersCallback<'info> {
 }
 
 #[event]
-pub struct TradeExecutedEvent {
-    pub match_id: u64,
-    pub buyer: Pubkey,
-    pub seller: Pubkey,
-    pub base_mint: Pubkey,
-    pub quote_mint: Pubkey,
-    pub quantity: u64,
-    pub execution_price: u64,
+pub struct EncryptedMatchesEvent {
+    pub computation_offset: Pubkey,
+    pub ciphertext: [[u8; 32]; 1466],  // Encrypted match data
+    pub nonce: u128,
+    pub timestamp: i64,
 }

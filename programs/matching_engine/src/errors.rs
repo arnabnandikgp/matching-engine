@@ -14,4 +14,8 @@ pub enum ErrorCode {
     InsufficientBalance,
     #[msg("Overflow")]
     Overflow,
+    #[msg("Already settled")]
+    AlreadySettled,
+    #[msg("Unauthorized settlement")]
+    UnauthorizedSettlement,
 }

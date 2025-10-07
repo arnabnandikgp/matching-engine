@@ -68,7 +68,12 @@ pub mod matching_engine {
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
 
-        // TODO: Handle matches
+        emit!(EncryptedMatchesEvent {
+            computation_offset: ctx.accounts.comp_def_account.key(),
+            ciphertext: matches.ciphertexts,  // Raw encrypted bytes
+            nonce: matches.nonce,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
 
         Ok(())
     }
