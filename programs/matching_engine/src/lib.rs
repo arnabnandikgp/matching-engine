@@ -20,6 +20,10 @@ pub mod matching_engine {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
         Ok(())
     }
+    pub fn initialize_vault(ctx: Context<InitializeUserVault>) -> Result<()> {
+        instructions::initialize_user_vault(ctx)?;
+        Ok(())
+    }
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         instructions::initialize(ctx)?;
@@ -89,6 +93,11 @@ pub mod matching_engine {
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
 
+        Ok(())
+    }
+
+    pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
+        instructions::withdraw_from_vault(ctx, amount)?;
         Ok(())
     }
 }

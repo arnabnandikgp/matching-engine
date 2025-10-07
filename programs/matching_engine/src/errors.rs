@@ -14,6 +14,4 @@ pub enum ErrorCode {
     InsufficientBalance,
     #[msg("Overflow")]
     Overflow,
-
-
 }

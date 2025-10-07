@@ -4,8 +4,8 @@ use arcis_imports::*;
 mod circuits {
     use arcis_imports::*;
 
-    pub const MAX_ORDERS: usize = 100;
-    pub const MAX_MATCHES_PER_BATCH: usize = 10;
+    pub const MAX_ORDERS: usize = 10;
+    pub const MAX_MATCHES_PER_BATCH: usize = 5;
 
     #[derive(Copy, Clone)]
     pub struct Order {
