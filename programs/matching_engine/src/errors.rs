@@ -10,6 +10,10 @@ pub enum ErrorCode {
     OrderIdOverflow,
     #[msg("Matching can only occur every 15 seconds")]
     MatchingTooFrequent,
+    #[msg("Insufficient balance")]
+    InsufficientBalance,
+    #[msg("Overflow")]
+    Overflow,
 
 
 }

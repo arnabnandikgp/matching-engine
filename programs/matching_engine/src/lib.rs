@@ -33,12 +33,24 @@ pub mod matching_engine {
 
     pub fn submit_order(
         ctx: Context<SubmitOrder>,
+        amount: u64,
+        price: u64,
+        order_type: u8,
         computation_offset: u64,
         encrypted_order: [u8; 32],
         pub_key: [u8; 32],
         nonce: u128,
     ) -> Result<()> {
-        instructions::submit_order(ctx, computation_offset, encrypted_order, pub_key, nonce)?;
+        instructions::submit_order(
+            ctx,
+            amount,
+            price,
+            order_type,
+            computation_offset,
+            encrypted_order,
+            pub_key,
+            nonce,
+        )?;
         Ok(())
     }
 
@@ -53,27 +65,6 @@ pub mod matching_engine {
         };
 
         // TODO: Handle matches
-
-        // for i in 0..matches.num_matches as usize {
-        //     if i >= 10 {
-        //         break;
-        //     }
-
-        //     let buyer_id = Pubkey::new_from_array(matches.buyer_ids[i]);
-        //     let seller_id = Pubkey::new_from_array(matches.seller_ids[i]);
-        //     let base_mint = Pubkey::new_from_array(matches.base_mints[i]);
-        //     let quote_mint = Pubkey::new_from_array(matches.quote_mints[i]);
-
-        //     emit!(TradeExecutedEvent {
-        //         match_id: matches.match_ids[i],
-        //         buyer: buyer_id,
-        //         seller: seller_id,
-        //         base_mint,
-        //         quote_mint,
-        //         quantity: matches.quantities[i],
-        //         execution_price: matches.execution_prices[i],
-        //     });
-        // }
 
         Ok(())
     }
