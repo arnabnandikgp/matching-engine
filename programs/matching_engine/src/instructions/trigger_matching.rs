@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
 use crate::errors::ErrorCode;
-use crate::states::OrderBook;
+use crate::states::OrderBookState;
 use crate::instructions::*;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
 use crate::SignerAccount;
 
-const ORDER_BOOK_SEED: &[u8] = b"order_book";
+const ORDER_BOOK_STATE_SEED: &[u8] = b"order_book_state";
 use crate::ID;
 use crate::ID_CONST;
 
@@ -17,7 +17,7 @@ pub fn trigger_matching(
     pub_key: [u8; 32],
     nonce: u128,
 ) -> Result<()> {
-    let order_book = &mut ctx.accounts.order_book;
+    let order_book = &mut ctx.accounts.order_book_state;
     let current_time = Clock::get()?.unix_timestamp;
     
     require!(
@@ -53,10 +53,10 @@ pub struct TriggerMatching<'info> {
     pub payer: Signer<'info>,
     #[account(
         mut,
-        seeds = [ORDER_BOOK_SEED],
-        bump = order_book.bump,
+        seeds = [ORDER_BOOK_STATE_SEED],
+        bump = order_book_state.bump,
     )]
-    pub order_book: Account<'info, OrderBook>,
+    pub order_book_state: Account<'info, OrderBookState>,
     #[account(
         init_if_needed,
         space = 9,
@@ -88,12 +88,3 @@ pub struct TriggerMatching<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
 }
-
-// pub struct MatchOrdersCallback<'info> {
-//     pub arcium_program: Program<'info, Arcium>,
-//     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_MATCH_ORDERS))]
-//     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-//     #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
-//     /// CHECK: instructions_sysvar, checked by the account constraint
-//     pub instructions_sysvar: AccountInfo<'info>,
-// }

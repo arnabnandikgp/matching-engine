@@ -9,7 +9,7 @@ use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
 use crate::SignerAccount;
 const VAULT_SEED: &[u8] = b"vault";
 
-const ORDER_BOOK_SEED: &[u8] = b"order_book";
+const ORDER_BOOK_STATE_SEED: &[u8] = b"order_book_state";
 use crate::ID;
 use crate::ID_CONST;
 
@@ -23,7 +23,7 @@ pub fn submit_order(
     pub_key: [u8; 32],
     nonce: u128,
 ) -> Result<()> {
-    let order_book = &mut ctx.accounts.order_book;
+    let order_book = &mut ctx.accounts.order_book_state;
     let order_id = order_book.next_order_id;
     order_book.next_order_id = order_book.next_order_id.checked_add(1)
         .ok_or(ErrorCode::OrderIdOverflow)?;
@@ -126,10 +126,10 @@ pub struct SubmitOrder<'info> {
     pub quote_vault: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [ORDER_BOOK_SEED],
-        bump = order_book.bump,
+        seeds = [ORDER_BOOK_STATE_SEED],
+        bump = order_book_state.bump,
     )]
-    pub order_book: Account<'info, OrderBook>,
+    pub order_book_state: Account<'info, OrderBookState>,
 
     #[account(mut)]
     pub base_mint: InterfaceAccount<'info, Mint>,
@@ -142,7 +142,7 @@ pub struct SubmitOrder<'info> {
         space = 8 + OrderAccount::INIT_SPACE,
         seeds = [
             b"order",
-            order_book.next_order_id.to_le_bytes().as_ref(),
+            order_book_state.next_order_id.to_le_bytes().as_ref(),
             user.key().as_ref(),
         ],
         bump,
