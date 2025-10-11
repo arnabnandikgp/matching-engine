@@ -65,7 +65,7 @@ mod circuits {
             } else {
                 self.buy_orders[self.buy_count as usize] = order;
                 self.buy_count += 1;
-                
+
                 let mut i = self.buy_count - 1;
                 let mut done = false;
                 for _ in 0..MAX_ORDERS {
@@ -81,19 +81,19 @@ mod circuits {
                         }
                     }
                 }
-                
+
                 true
             };
             success
         }
 
         pub fn insert_sell(&mut self, order: Order) -> bool {
-            let success = if self.sell_count >= MAX_ORDERS as u8{
+            let success = if self.sell_count >= MAX_ORDERS as u8 {
                 false
             } else {
                 self.sell_orders[self.sell_count as usize] = order;
                 self.sell_count += 1;
-                
+
                 let mut i = self.sell_count - 1;
                 let mut done = false;
                 for _ in 0..MAX_ORDERS {
@@ -109,7 +109,7 @@ mod circuits {
                         }
                     }
                 }
-                
+
                 true
             };
             success
@@ -261,7 +261,7 @@ mod circuits {
 
     pub struct MatchResult {
         pub matches: [MatchedOrder; MAX_MATCHES_PER_BATCH],
-        pub num_matches: u8,  // ✅ Changed from u64 to u8
+        pub num_matches: u8, // ✅ Changed from u64 to u8
     }
 
     impl MatchResult {
@@ -316,7 +316,7 @@ mod circuits {
     #[instruction]
     pub fn match_orders(
         user: Shared,
-        order_book_ctxt: Enc<Mxe, OrderBook>
+        order_book_ctxt: Enc<Mxe, OrderBook>,
     ) -> (Enc<Shared, MatchResult>, Enc<Mxe, OrderBook>) {
         let mut order_book = order_book_ctxt.to_arcis();
         let mut result = MatchResult::empty();
@@ -324,213 +324,49 @@ mod circuits {
         let mut match_count = 0u8;
         let mut next_match_id = 0u64;
 
-        // ✅ Manually unroll the loop for each match
-        // Match 0
-        if order_book.has_buy() && order_book.has_sell() {
-            let buy = order_book.peek_buy();
-            let sell = order_book.peek_sell();
+        for match_idx in 0..MAX_MATCHES_PER_BATCH {
+            if order_book.has_buy() && order_book.has_sell() {
+                let buy = order_book.peek_buy();
+                let sell = order_book.peek_sell();
 
-            if buy.price >= sell.price {
-                let mut buyer = order_book.pop_buy();
-                let mut seller = order_book.pop_sell();
+                if buy.price >= sell.price {
+                    let mut buyer = order_book.pop_buy();
+                    let mut seller = order_book.pop_sell();
 
-                let execution_price = (buyer.price + seller.price) / 2;
-                let fill_quantity = if buyer.amount < seller.amount {
-                    buyer.amount
-                } else {
-                    seller.amount
-                };
+                    let execution_price = (buyer.price + seller.price) / 2;
+                    let fill_quantity = if buyer.amount < seller.amount {
+                        buyer.amount
+                    } else {
+                        seller.amount
+                    };
 
-                result.set_match(0, MatchedOrder {
-                    match_id: next_match_id,
-                    buyer_vault_pubkey: buyer.user_vault_pubkey,
-                    seller_vault_pubkey: seller.user_vault_pubkey,
-                    base_mint: buyer.base_mint,
-                    quote_mint: buyer.quote_mint,
-                    quantity: fill_quantity,
-                    execution_price,
-                });
+                    result.set_match(
+                        match_idx as u8,
+                        MatchedOrder {
+                            match_id: next_match_id,
+                            buyer_vault_pubkey: buyer.user_vault_pubkey,
+                            seller_vault_pubkey: seller.user_vault_pubkey,
+                            base_mint: buyer.base_mint,
+                            quote_mint: buyer.quote_mint,
+                            quantity: fill_quantity,
+                            execution_price,
+                        },
+                    );
 
-                buyer.amount = buyer.amount - fill_quantity;
-                seller.amount = seller.amount - fill_quantity;
+                    buyer.amount = buyer.amount - fill_quantity;
+                    seller.amount = seller.amount - fill_quantity;
 
-                if buyer.amount > 0 {
-                    order_book.insert_buy(buyer);
+                    if buyer.amount > 0 {
+                        order_book.insert_buy(buyer);
+                    }
+
+                    if seller.amount > 0 {
+                        order_book.insert_sell(seller);
+                    }
+
+                    match_count = match_idx as u8 + 1;
+                    next_match_id += 1;
                 }
-
-                if seller.amount > 0 {
-                    order_book.insert_sell(seller);
-                }
-
-                match_count = 1;
-                next_match_id += 1;
-            }
-        }
-
-        // Match 1
-        if match_count >= 1 && order_book.has_buy() && order_book.has_sell() {
-            let buy = order_book.peek_buy();
-            let sell = order_book.peek_sell();
-
-            if buy.price >= sell.price {
-                let mut buyer = order_book.pop_buy();
-                let mut seller = order_book.pop_sell();
-
-                let execution_price = (buyer.price + seller.price) / 2;
-                let fill_quantity = if buyer.amount < seller.amount {
-                    buyer.amount
-                } else {
-                    seller.amount
-                };
-
-                result.set_match(1, MatchedOrder {
-                    match_id: next_match_id,
-                    buyer_vault_pubkey: buyer.user_vault_pubkey,
-                    seller_vault_pubkey: seller.user_vault_pubkey,
-                    base_mint: buyer.base_mint,
-                    quote_mint: buyer.quote_mint,
-                    quantity: fill_quantity,
-                    execution_price,
-                });
-
-                buyer.amount = buyer.amount - fill_quantity;
-                seller.amount = seller.amount - fill_quantity;
-
-                if buyer.amount > 0 {
-                    order_book.insert_buy(buyer);
-                }
-
-                if seller.amount > 0 {
-                    order_book.insert_sell(seller);
-                }
-
-                match_count = 2;
-                next_match_id += 1;
-            }
-        }
-
-        // Match 2
-        if match_count >= 2 && order_book.has_buy() && order_book.has_sell() {
-            let buy = order_book.peek_buy();
-            let sell = order_book.peek_sell();
-
-            if buy.price >= sell.price {
-                let mut buyer = order_book.pop_buy();
-                let mut seller = order_book.pop_sell();
-
-                let execution_price = (buyer.price + seller.price) / 2;
-                let fill_quantity = if buyer.amount < seller.amount {
-                    buyer.amount
-                } else {
-                    seller.amount
-                };
-
-                result.set_match(2, MatchedOrder {
-                    match_id: next_match_id,
-                    buyer_vault_pubkey: buyer.user_vault_pubkey,
-                    seller_vault_pubkey: seller.user_vault_pubkey,
-                    base_mint: buyer.base_mint,
-                    quote_mint: buyer.quote_mint,
-                    quantity: fill_quantity,
-                    execution_price,
-                });
-
-                buyer.amount = buyer.amount - fill_quantity;
-                seller.amount = seller.amount - fill_quantity;
-
-                if buyer.amount > 0 {
-                    order_book.insert_buy(buyer);
-                }
-
-                if seller.amount > 0 {
-                    order_book.insert_sell(seller);
-                }
-
-                match_count = 3;
-                next_match_id += 1;
-            }
-        }
-
-        // Match 3
-        if match_count >= 3 && order_book.has_buy() && order_book.has_sell() {
-            let buy = order_book.peek_buy();
-            let sell = order_book.peek_sell();
-
-            if buy.price >= sell.price {
-                let mut buyer = order_book.pop_buy();
-                let mut seller = order_book.pop_sell();
-
-                let execution_price = (buyer.price + seller.price) / 2;
-                let fill_quantity = if buyer.amount < seller.amount {
-                    buyer.amount
-                } else {
-                    seller.amount
-                };
-
-                result.set_match(3, MatchedOrder {
-                    match_id: next_match_id,
-                    buyer_vault_pubkey: buyer.user_vault_pubkey,
-                    seller_vault_pubkey: seller.user_vault_pubkey,
-                    base_mint: buyer.base_mint,
-                    quote_mint: buyer.quote_mint,
-                    quantity: fill_quantity,
-                    execution_price,
-                });
-
-                buyer.amount = buyer.amount - fill_quantity;
-                seller.amount = seller.amount - fill_quantity;
-
-                if buyer.amount > 0 {
-                    order_book.insert_buy(buyer);
-                }
-
-                if seller.amount > 0 {
-                    order_book.insert_sell(seller);
-                }
-
-                match_count = 4;
-                next_match_id += 1;
-            }
-        }
-
-        // Match 4
-        if match_count >= 4 && order_book.has_buy() && order_book.has_sell() {
-            let buy = order_book.peek_buy();
-            let sell = order_book.peek_sell();
-
-            if buy.price >= sell.price {
-                let mut buyer = order_book.pop_buy();
-                let mut seller = order_book.pop_sell();
-
-                let execution_price = (buyer.price + seller.price) / 2;
-                let fill_quantity = if buyer.amount < seller.amount {
-                    buyer.amount
-                } else {
-                    seller.amount
-                };
-
-                result.set_match(4, MatchedOrder {
-                    match_id: next_match_id,
-                    buyer_vault_pubkey: buyer.user_vault_pubkey,
-                    seller_vault_pubkey: seller.user_vault_pubkey,
-                    base_mint: buyer.base_mint,
-                    quote_mint: buyer.quote_mint,
-                    quantity: fill_quantity,
-                    execution_price,
-                });
-
-                buyer.amount = buyer.amount - fill_quantity;
-                seller.amount = seller.amount - fill_quantity;
-
-                if buyer.amount > 0 {
-                    order_book.insert_buy(buyer);
-                }
-
-                if seller.amount > 0 {
-                    order_book.insert_sell(seller);
-                }
-
-                match_count = 5;
             }
         }
 
@@ -538,7 +374,7 @@ mod circuits {
 
         (
             user.from_arcis(result),
-            order_book_ctxt.owner.from_arcis(order_book)
+            order_book_ctxt.owner.from_arcis(order_book),
         )
     }
 }
