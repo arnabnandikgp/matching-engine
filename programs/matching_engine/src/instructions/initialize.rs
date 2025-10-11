@@ -1,14 +1,14 @@
 use anchor_lang::prelude::*;
-const ORDER_BOOK_SEED: &[u8] = b"order_book";
-use crate::states::OrderBook;
+const ORDER_BOOK_STATE_SEED: &[u8] = b"order_book_state";
+use crate::{states::OrderBookState};
 
 
 pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-    let order_book = &mut ctx.accounts.order_book;
-    order_book.authority = ctx.accounts.authority.key();
-    order_book.next_order_id = 0;
-    order_book.last_match_timestamp = Clock::get()?.unix_timestamp;
-    order_book.bump = ctx.bumps.order_book;
+    let order_book_state = &mut ctx.accounts.order_book_state;
+    order_book_state.authority = ctx.accounts.authority.key();
+    order_book_state.next_order_id = 0;
+    order_book_state.last_match_timestamp = Clock::get()?.unix_timestamp;
+    order_book_state.bump = ctx.bumps.order_book_state;
     Ok(())
 }
 
@@ -20,10 +20,10 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        space = 8 + OrderBook::INIT_SPACE,
-        seeds = [ORDER_BOOK_SEED],
+        space = 8 + OrderBookState::INIT_SPACE,
+        seeds = [ORDER_BOOK_STATE_SEED],
         bump
     )]
-    pub order_book: Account<'info, OrderBook>,
+    pub order_book_state: Account<'info, OrderBookState>,
     pub system_program: Program<'info, System>,
 }
