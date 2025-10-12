@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
 use crate::errors::ErrorCode;
-use crate::states::OrderBookState;
+use crate::states::*;
 use crate::instructions::*;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
 use crate::SignerAccount;
@@ -29,8 +29,13 @@ pub fn trigger_matching(
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
 
     let args = vec![
-        Argument::ArcisPubkey(pub_key),
-        Argument::PlaintextU128(nonce),
+        //user 
+        Argument::ArcisPubkey(ctx.accounts.match_records.user_key),
+
+        // orderbook
+        Argument::PlaintextU128(ctx.accounts.match_records.order_book_nonce),
+        Argument::Account(ctx.accounts.match_records.key(), 8, 2582), 
+
     ];
 
     queue_computation(
@@ -51,12 +56,6 @@ pub fn trigger_matching(
 pub struct TriggerMatching<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [ORDER_BOOK_STATE_SEED],
-        bump = order_book_state.bump,
-    )]
-    pub order_book_state: Account<'info, OrderBookState>,
     #[account(
         init_if_needed,
         space = 9,
@@ -87,4 +86,12 @@ pub struct TriggerMatching<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
+    #[account(
+        mut,
+        seeds = [ORDER_BOOK_STATE_SEED],
+        bump = order_book_state.bump,
+    )]
+    pub order_book_state: Account<'info, OrderBookState>,
+    #[account(mut)]
+    pub match_records: Account<'info, MatchRecordsStruct>,
 }

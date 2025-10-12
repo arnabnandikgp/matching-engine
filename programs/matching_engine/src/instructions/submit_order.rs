@@ -8,8 +8,8 @@ use crate::instructions::*;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
 use crate::SignerAccount;
 const VAULT_SEED: &[u8] = b"vault";
+use arcium_client::idl::arcium::types::CallbackAccount;
 
-const ORDER_BOOK_STATE_SEED: &[u8] = b"order_book_state";
 use crate::ID;
 use crate::ID_CONST;
 
@@ -19,15 +19,8 @@ pub fn submit_order(
     price: u64,
     order_type: u8,  // 0 = buy, 1 = sell
     computation_offset: u64,
-    encrypted_order: [u8; 32],
-    pub_key: [u8; 32],
-    nonce: u128,
+    order_id: u64, // to be given from the client(in api) or backend(in backend)
 ) -> Result<()> {
-    let order_book = &mut ctx.accounts.order_book_state;
-    let order_id = order_book.next_order_id;
-    order_book.next_order_id = order_book.next_order_id.checked_add(1)
-        .ok_or(ErrorCode::OrderIdOverflow)?;
-    
     // Calculate required funds
     let locked_amount = if order_type == 0 {
         // Buy: lock quote tokens (USDC)
@@ -75,15 +68,18 @@ pub fn submit_order(
         .ok_or(ErrorCode::Overflow)?;
     ctx.accounts.vault_state.num_active_orders = ctx.accounts.vault_state.num_active_orders.checked_add(1)
         .ok_or(ErrorCode::Overflow)?;
+
     
     // Queue to MXE
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     let args = vec![
-        Argument::ArcisPubkey(pub_key),
-        Argument::PlaintextU128(nonce),
-        Argument::PlaintextU64(order_id),
-        Argument::PlaintextU64(Clock::get()?.unix_timestamp as u64),
-        Argument::EncryptedU8(encrypted_order),
+        // Order
+        Argument::ArcisPubkey(ctx.accounts.submit_order_struct.caller_enc_pubkey),
+        Argument::PlaintextU128(ctx.accounts.submit_order_struct.order_nonce),
+        Argument::Account(ctx.accounts.submit_order_struct.key(), 8 , 129), // confusion
+        // MXE Orderbook
+        Argument::PlaintextU128(ctx.accounts.submit_order_struct.order_book_nonce),
+        Argument::Account(ctx.accounts.submit_order_struct.key(), 8 + 129, 2582), // confusion
     ];
     
     queue_computation(
@@ -94,68 +90,16 @@ pub fn submit_order(
         vec![SubmitOrderCallback::callback_ix(&[])],
     )?;
     
-    emit!(OrderSubmittedEvent {
-        user: ctx.accounts.user.key(),
-        order_id,
-        computation_offset,
-        locked_amount,
-        vault: vault.key(),
-    });
     
     Ok(())
 }
 
 #[queue_computation_accounts("submit_order", user)]
 #[derive(Accounts)]
-#[instruction(computation_offset: u64)]
+#[instruction(computation_offset: u64, order_id: u64)]
 pub struct SubmitOrder<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
-        bump,
-    )]
-    pub base_vault: Account<'info, TokenAccount>,
-    // User's quote token vault (e.g., USDC)
-    #[account(
-        mut,
-        seeds = [VAULT_SEED, quote_mint.key().as_ref(), user.key().as_ref()],
-        bump,
-    )]
-    pub quote_vault: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [ORDER_BOOK_STATE_SEED],
-        bump = order_book_state.bump,
-    )]
-    pub order_book_state: Account<'info, OrderBookState>,
-
-    #[account(mut)]
-    pub base_mint: InterfaceAccount<'info, Mint>,
-    #[account(mut)]
-    pub quote_mint: InterfaceAccount<'info, Mint>,
-
-    #[account(
-        init,
-        payer = user,
-        space = 8 + OrderAccount::INIT_SPACE,
-        seeds = [
-            b"order",
-            order_book_state.next_order_id.to_le_bytes().as_ref(),
-            user.key().as_ref(),
-        ],
-        bump,
-    )]
-    pub order_account: Account<'info, OrderAccount>,
-
-    #[account(
-        mut,
-        seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
-        bump,
-    )]
-    pub vault_state: Account<'info, VaultState>,
-
     #[account(
         init_if_needed,
         space = 9,
@@ -186,6 +130,47 @@ pub struct SubmitOrder<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub base_vault: Account<'info, TokenAccount>,
+    // User's quote token vault (e.g., USDC)
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, quote_mint.key().as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub quote_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub base_mint: InterfaceAccount<'info, Mint>,
+    #[account(mut)]
+    pub quote_mint: InterfaceAccount<'info, Mint>,
+    #[account(
+        init,
+        payer = user,
+        space = 8 + OrderAccount::INIT_SPACE,
+        seeds = [
+            b"order",
+            order_id.to_le_bytes().as_ref(),
+            user.key().as_ref(),
+        ],
+        bump,
+    )]
+    pub order_account: Account<'info, OrderAccount>,
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub vault_state: Account<'info, VaultState>,
+    #[account(
+        mut,
+        seeds = [b"submit_order_struct".as_ref(), order_id.to_le_bytes().as_ref()],
+        bump = submit_order_struct.bump,
+    )]
+    pub submit_order_struct: Account<'info, SubmitOrderStruct>,
 }
 
 #[event]
