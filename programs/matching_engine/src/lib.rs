@@ -10,11 +10,12 @@ pub mod states;
 pub use instructions::*;
 pub use states::*;
 pub mod errors;
-pub use errors::*;
+pub use errors::ErrorCode;
 
 #[arcium_program]
 pub mod matching_engine {
     use super::*;
+    use crate::errors::ErrorCode;
 
     pub fn init_match_orders_comp_def(ctx: Context<InitMatchOrdersCompDef>) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
@@ -35,45 +36,28 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn submit_order(
-        ctx: Context<SubmitOrder>,
-        amount: u64,
-        price: u64,
-        order_type: u8,
-        computation_offset: u64,
-        encrypted_order: [u8; 32],
-        pub_key: [u8; 32],
-        nonce: u128,
-    ) -> Result<()> {
-        instructions::submit_order(
-            ctx,
-            amount,
-            price,
-            order_type,
-            computation_offset,
-            encrypted_order,
-            pub_key,
-            nonce,
-        )?;
-        Ok(())
-    }
-
     #[arcium_callback(encrypted_ix = "match_orders", network = "localnet")]
     pub fn match_orders_callback(
         ctx: Context<MatchOrdersCallback>,
         output: ComputationOutputs<MatchOrdersOutput>,
     ) -> Result<()> {
-        let matches = match output {
-            ComputationOutputs::Success(MatchOrdersOutput { field_0 }) => field_0,
+        let o = match output {
+            ComputationOutputs::Success(MatchOrdersOutput {
+                field_0:
+                    MatchOrdersOutputStruct0 {
+                        field_0: deck,
+                        field_1: dealer_hand,
+                    },
+            }) => (deck, dealer_hand),
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
 
-        emit!(EncryptedMatchesEvent {
-            computation_offset: ctx.accounts.comp_def_account.key(),
-            ciphertext: matches.ciphertexts,  // Raw encrypted bytes
-            nonce: matches.nonce,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
+        // emit!(EncryptedMatchesEvent {
+        //     computation_offset: ctx.accounts.comp_def_account.key(),
+        //     ciphertext: matches.ciphertexts,  // Raw encrypted bytes
+        //     nonce: matches.nonce,
+        //     timestamp: Clock::get()?.unix_timestamp,
+        // });
 
         Ok(())
     }
@@ -93,10 +77,32 @@ pub mod matching_engine {
         ctx: Context<SubmitOrderCallback>,
         output: ComputationOutputs<SubmitOrderOutput>,
     ) -> Result<()> {
-        let _result = match output {
-            ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => field_0,
+        let o = match output {
+            ComputationOutputs::Success(SubmitOrderOutput {
+                field_0:
+                    SubmitOrderOutputStruct0 {
+                        field_0: success,
+                        field_1: buy_count,
+                        field_2: sell_count,
+                    },
+            }) => (success, buy_count, sell_count),
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
+
+        let success: bool = o.0;
+        let buy_count: u8 = o.1;
+        let sell_count: u8 = o.2;
+
+        if success {
+            ctx.accounts.order_account.status = 1; // processing
+        } else {
+            ctx.accounts.order_account.status = 2; // cancelled
+        }
+        // will be used by the cranker to trigger the matching
+        emit!(SubmitOrderEvent {
+            buy_count,
+            sell_count,
+        });
 
         Ok(())
     }
@@ -112,10 +118,8 @@ pub mod matching_engine {
     }
 }
 
-#[error_code]
-pub enum ErrorCode {
-    #[msg("The computation was aborted")]
-    AbortedComputation,
-    #[msg("Cluster not set")]
-    ClusterNotSet,
+#[event]
+pub struct SubmitOrderEvent {
+    pub buy_count: u8,
+    pub sell_count: u8,
 }

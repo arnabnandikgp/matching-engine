@@ -300,7 +300,7 @@ mod circuits {
     pub fn submit_order(
         order_ctxt: Enc<Shared, Order>,
         encrypted_order_book_ctxt: Enc<Mxe, OrderBook>,
-    ) -> Enc<Mxe, OrderBook> {
+    ) -> (bool , u8 , u8) {
         let order = order_ctxt.to_arcis();
         let mut order_book = encrypted_order_book_ctxt.to_arcis();
 
@@ -310,7 +310,11 @@ mod circuits {
             order_book.insert_sell(order)
         };
 
-        encrypted_order_book_ctxt.owner.from_arcis(order_book)
+        (
+            _success.reveal(),
+            order_book.buy_count.reveal(),
+            order_book.sell_count.reveal(),
+        )
     }
 
     #[instruction]

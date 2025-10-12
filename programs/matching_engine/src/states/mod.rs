@@ -9,3 +9,9 @@ pub use vault_state::*;
 
 pub mod match_record;
 pub use match_record::*;
+
+pub mod submit_order;
+pub use submit_order::*;
+
+pub mod match_record_struct;
+pub use match_record_struct::*;

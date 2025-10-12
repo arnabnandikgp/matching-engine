@@ -2,6 +2,7 @@ use arcium_anchor::prelude::*;
 use anchor_lang::prelude::*;
 use crate::ID_CONST;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
+use crate::states::OrderAccount;
 #[callback_accounts("submit_order")]
 #[derive(Accounts)]
 pub struct SubmitOrderCallback<'info> {
@@ -11,4 +12,6 @@ pub struct SubmitOrderCallback<'info> {
     #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: AccountInfo<'info>,
+    #[account(mut)]
+    pub order_account: Account<'info, OrderAccount>,
 }
