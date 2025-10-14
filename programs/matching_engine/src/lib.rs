@@ -26,8 +26,8 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        instructions::initialize(ctx)?;
+    pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint: Pubkey, quote_mint: Pubkey) -> Result<()> {
+        instructions::initialize(ctx, backend_pubkey, base_mint, quote_mint)?;
         Ok(())
     }
 
@@ -36,40 +36,62 @@ pub mod matching_engine {
         Ok(())
     }
 
+    pub fn trigger_matching(
+        ctx: Context<TriggerMatching>,
+        computation_offset: u64,
+    ) -> Result<()> {
+        instructions::trigger_matching(ctx, computation_offset)?;
+        Ok(())
+    }
+
     #[arcium_callback(encrypted_ix = "match_orders", network = "localnet")]
     pub fn match_orders_callback(
         ctx: Context<MatchOrdersCallback>,
         output: ComputationOutputs<MatchOrdersOutput>,
     ) -> Result<()> {
-        let o = match output {
+        let (match_result_encrypted, orderbook_encrypted) = match output {
             ComputationOutputs::Success(MatchOrdersOutput {
-                field_0:
-                    MatchOrdersOutputStruct0 {
-                        field_0: deck,
-                        field_1: dealer_hand,
-                    },
-            }) => (deck, dealer_hand),
+                field_0: MatchOrdersOutputStruct0 {
+                    field_0: match_result,    // Enc<Shared, MatchResult>
+                    field_1: orderbook,       // Enc<Mxe, OrderBook>
+                },
+            }) => (match_result, orderbook),
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
-
-        // emit!(EncryptedMatchesEvent {
-        //     computation_offset: ctx.accounts.comp_def_account.key(),
-        //     ciphertext: matches.ciphertexts,  // Raw encrypted bytes
-        //     nonce: matches.nonce,
-        //     timestamp: Clock::get()?.unix_timestamp,
-        // });
-
+    
+        let new_orderbook_nonce = orderbook_encrypted.nonce;
+        let orderbook_ciphertext = orderbook_encrypted.ciphertexts;
+        
+        let global_orderbook = &mut ctx.accounts.global_orderbook;
+        global_orderbook.orderbook_nonce = new_orderbook_nonce;
+        
+        // Copy orderbook ciphertext to account storage
+        for (i, chunk) in orderbook_ciphertext.iter().enumerate() {
+            let start = i * 32;
+            let end = start + 32;
+            if end <= global_orderbook.orderbook_data.len() {
+                global_orderbook.orderbook_data[start..end].copy_from_slice(chunk);
+            }
+        }
+        
+        // Extract match result data (encrypted for backend)
+        let match_nonce = match_result_encrypted.nonce;
+        let match_ciphertext = match_result_encrypted.ciphertexts;
+        
+        // Update metadata
+        let timestamp = Clock::get()?.unix_timestamp;
+        
+        emit!(MatchResultEvent {
+            match_ciphertext,         // Backend decrypts this with match_nonce
+            match_nonce,              // Backend needs this nonce!
+            orderbook_nonce: new_orderbook_nonce,
+            timestamp,
+        });
+    
+        msg!("Matches computed. Backend can now decrypt match results using emitted nonce.");
+        
         Ok(())
-    }
-
-    pub fn trigger_matching(
-        ctx: Context<TriggerMatching>,
-        computation_offset: u64,
-        pub_key: [u8; 32],
-        nonce: u128,
-    ) -> Result<()> {
-        instructions::trigger_matching(ctx, computation_offset, pub_key, nonce)?;
-        Ok(())
+    
     }
 
     #[arcium_callback(encrypted_ix = "submit_order", network = "localnet")]
@@ -77,36 +99,55 @@ pub mod matching_engine {
         ctx: Context<SubmitOrderCallback>,
         output: ComputationOutputs<SubmitOrderOutput>,
     ) -> Result<()> {
-        let o = match output {
+        let (orderbook_encrypted, success, buy_count, sell_count) = match output {
             ComputationOutputs::Success(SubmitOrderOutput {
-                field_0:
-                    SubmitOrderOutputStruct0 {
-                        field_0: success,
-                        field_1: buy_count,
-                        field_2: sell_count,
-                    },
-            }) => (success, buy_count, sell_count),
+                field_0: SubmitOrderOutputStruct0 {
+                    field_0: orderbook,
+                    field_1: success,
+                    field_2: buy_count,
+                    field_3: sell_count,
+                },
+            }) => (orderbook, success, buy_count, sell_count),
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
 
-        let success: bool = o.0;
-        let buy_count: u8 = o.1;
-        let sell_count: u8 = o.2;
-
-        if success {
-            ctx.accounts.order_account.status = 1; // processing
-        } else {
-            ctx.accounts.order_account.status = 2; // cancelled
+        let new_orderbook_nonce = orderbook_encrypted.nonce;
+        let orderbook_ciphertext = orderbook_encrypted.ciphertexts;
+        
+        let global_orderbook = &mut ctx.accounts.global_orderbook;
+        global_orderbook.orderbook_nonce = new_orderbook_nonce;
+        
+        // Copy ciphertext to account storage
+        for (i, chunk) in orderbook_ciphertext.iter().enumerate() {
+            let start = i * 32;
+            let end = start + 32;
+            if end <= global_orderbook.orderbook_data.len() {
+                global_orderbook.orderbook_data[start..end].copy_from_slice(chunk);
+            }
         }
-        // will be used by the cranker to trigger the matching
-        emit!(SubmitOrderEvent {
+        
+        global_orderbook.total_orders_processed += 1;
+        
+        let order_account = &mut ctx.accounts.order_account;
+        if success {
+            order_account.status = 1; // Processing (added to orderbook)
+        } else {
+            order_account.status = 2; // Rejected (orderbook full)
+        }
+
+        // Emit event for cranker
+        emit!(OrderProcessedEvent {
+            order_id: order_account.order_id,
+            success,
             buy_count,
             sell_count,
+            orderbook_nonce: new_orderbook_nonce,
         });
 
+        msg!("Order processed. Success: {}, Buy Count: {}, Sell Count: {}", success, buy_count, sell_count);
+        
         Ok(())
     }
-
     pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
         instructions::withdraw_from_vault(ctx, amount)?;
         Ok(())
@@ -119,7 +160,18 @@ pub mod matching_engine {
 }
 
 #[event]
-pub struct SubmitOrderEvent {
+pub struct OrderProcessedEvent {
+    pub order_id: u64,
+    pub success: bool,
     pub buy_count: u8,
     pub sell_count: u8,
+    pub orderbook_nonce: u128,
+}
+
+#[event]
+pub struct MatchResultEvent {
+    pub match_ciphertext: [[u8; 32]; 336],  // Encrypted Enc<Shared, MatchResult>
+    pub match_nonce: u128,                    //  Backend needs this to decrypt!
+    pub orderbook_nonce: u128,                // New orderbook nonce
+    pub timestamp: i64,
 }

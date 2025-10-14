@@ -10,9 +10,7 @@ mod circuits {
     #[derive(Copy, Clone)]
     pub struct Order {
         pub order_id: u64,
-        pub user_vault_pubkey: [u8; 32],
-        pub base_mint: [u8; 32],
-        pub quote_mint: [u8; 32],
+        pub user_pubkey: [u8; 32],
         pub amount: u64,
         pub price: u64,
         pub order_type: u8,
@@ -23,9 +21,7 @@ mod circuits {
         pub fn empty() -> Self {
             Order {
                 order_id: 0,
-                user_vault_pubkey: [0u8; 32],
-                base_mint: [0u8; 32],
-                quote_mint: [0u8; 32],
+                user_pubkey: [0u8; 32],
                 amount: 0,
                 price: 0,
                 order_type: 0,
@@ -239,8 +235,6 @@ mod circuits {
         pub match_id: u64,
         pub buyer_vault_pubkey: [u8; 32],
         pub seller_vault_pubkey: [u8; 32],
-        pub base_mint: [u8; 32],
-        pub quote_mint: [u8; 32],
         pub quantity: u64,
         pub execution_price: u64,
     }
@@ -251,8 +245,6 @@ mod circuits {
                 match_id: 0,
                 buyer_vault_pubkey: [0u8; 32],
                 seller_vault_pubkey: [0u8; 32],
-                base_mint: [0u8; 32],
-                quote_mint: [0u8; 32],
                 quantity: 0,
                 execution_price: 0,
             }
@@ -261,7 +253,7 @@ mod circuits {
 
     pub struct MatchResult {
         pub matches: [MatchedOrder; MAX_MATCHES_PER_BATCH],
-        pub num_matches: u8, // ✅ Changed from u64 to u8
+        pub num_matches: u8,
     }
 
     impl MatchResult {
@@ -272,7 +264,7 @@ mod circuits {
             }
         }
 
-        // ✅ Helper to set matches one at a time
+        // Helper to set matches one at a time
         pub fn set_match(&mut self, index: u8, matched_order: MatchedOrder) {
             // Manually unroll for each possible index
             if index == 0 {
@@ -296,24 +288,46 @@ mod circuits {
         mxe.from_arcis(order_book)
     }
 
+    pub struct SensitiveOrderData {
+        pub amount: u64,
+        pub price: u64,
+    }
+
     #[instruction]
     pub fn submit_order(
-        order_ctxt: Enc<Shared, Order>,
-        encrypted_order_book_ctxt: Enc<Mxe, OrderBook>,
-    ) -> (bool , u8 , u8) {
-        let order = order_ctxt.to_arcis();
-        let mut order_book = encrypted_order_book_ctxt.to_arcis();
+        sensitive_ctxt: Enc<Shared, SensitiveOrderData>,
+        orderbook_ctxt: Enc<Mxe, OrderBook>,
+        order_id: u64,
+        user_pubkey: [u8; 32],
+        order_type: u8,
+        timestamp: u64,
+    ) -> (Enc<Mxe, OrderBook>, bool, u8, u8) {
+        let sensitive = sensitive_ctxt.to_arcis();
+        let mut order_book = orderbook_ctxt.to_arcis();
 
-        let _success = if order.is_buy() {
+        let order = Order {
+            order_id,
+            user_pubkey,
+            amount: sensitive.amount,
+            price: sensitive.price,
+            order_type,
+            timestamp,
+        };
+
+        let success = if order.is_buy() {
             order_book.insert_buy(order)
         } else {
             order_book.insert_sell(order)
         };
 
+        let buy_count = order_book.buy_count;
+        let sell_count = order_book.sell_count;
+
         (
-            _success.reveal(),
-            order_book.buy_count.reveal(),
-            order_book.sell_count.reveal(),
+            orderbook_ctxt.owner.from_arcis(order_book),  // Re-encrypt for MXE
+            success.reveal(),
+            buy_count.reveal(),
+            sell_count.reveal(),
         )
     }
 
@@ -348,10 +362,8 @@ mod circuits {
                         match_idx as u8,
                         MatchedOrder {
                             match_id: next_match_id,
-                            buyer_vault_pubkey: buyer.user_vault_pubkey,
-                            seller_vault_pubkey: seller.user_vault_pubkey,
-                            base_mint: buyer.base_mint,
-                            quote_mint: buyer.quote_mint,
+                            buyer_vault_pubkey: buyer.user_pubkey,
+                            seller_vault_pubkey: seller.user_pubkey,
                             quantity: fill_quantity,
                             execution_price,
                         },
