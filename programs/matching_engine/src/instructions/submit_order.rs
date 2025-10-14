@@ -14,6 +14,16 @@ const GLOBAL_ORDERBOOK_SEED: &[u8] = b"global_orderbook";
 use crate::ID;
 use crate::ID_CONST;
 
+
+fn pubkey_to_u64_chunks(pubkey_bytes: &[u8; 32]) -> [u64; 4] {
+    [
+        u64::from_le_bytes(pubkey_bytes[0..8].try_into().unwrap()),
+        u64::from_le_bytes(pubkey_bytes[8..16].try_into().unwrap()),
+        u64::from_le_bytes(pubkey_bytes[16..24].try_into().unwrap()),
+        u64::from_le_bytes(pubkey_bytes[24..32].try_into().unwrap()),
+    ]
+}
+
 pub fn submit_order(
     ctx: Context<SubmitOrder>,
     amount: u64,
@@ -70,6 +80,9 @@ pub fn submit_order(
         .num_active_orders
         .checked_add(1)
         .ok_or(ErrorCode::Overflow)?;
+
+    let user_pubkey_bytes = ctx.accounts.user.key().to_bytes();
+    let user_chunks = pubkey_to_u64_chunks(&user_pubkey_bytes);
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     let args = vec![

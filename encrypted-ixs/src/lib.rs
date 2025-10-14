@@ -298,12 +298,21 @@ mod circuits {
         sensitive_ctxt: Enc<Shared, SensitiveOrderData>,
         orderbook_ctxt: Enc<Mxe, OrderBook>,
         order_id: u64,
-        user_pubkey: [u8; 32],
+        user_0: u64,
+        user_1: u64,
+        user_2: u64,
+        user_3: u64,
         order_type: u8,
         timestamp: u64,
     ) -> (Enc<Mxe, OrderBook>, bool, u8, u8) {
         let sensitive = sensitive_ctxt.to_arcis();
         let mut order_book = orderbook_ctxt.to_arcis();
+
+        let mut user_pubkey = [0u8; 32];
+        user_pubkey[0..8].copy_from_slice(&user_0.to_le_bytes());
+        user_pubkey[8..16].copy_from_slice(&user_1.to_le_bytes());
+        user_pubkey[16..24].copy_from_slice(&user_2.to_le_bytes());
+        user_pubkey[24..32].copy_from_slice(&user_3.to_le_bytes());
 
         let order = Order {
             order_id,
@@ -324,7 +333,7 @@ mod circuits {
         let sell_count = order_book.sell_count;
 
         (
-            orderbook_ctxt.owner.from_arcis(order_book),  // Re-encrypt for MXE
+            orderbook_ctxt.owner.from_arcis(order_book), // Re-encrypt for MXE
             success.reveal(),
             buy_count.reveal(),
             sell_count.reveal(),
