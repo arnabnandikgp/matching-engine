@@ -7,7 +7,7 @@ use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
 use crate::SignerAccount;
 use arcium_client::idl::arcium::types::CallbackAccount;
 
-const GLOBAL_ORDERBOOK_SEED: &[u8] = b"global_orderbook";
+const GLOBAL_ORDERBOOK_SEED: &[u8] = b"order_book_state";
 use crate::ID;
 use crate::ID_CONST;
 
@@ -101,7 +101,7 @@ pub struct TriggerMatching<'info> {
         seeds = [GLOBAL_ORDERBOOK_SEED],
         bump = global_orderbook.bump,
     )]
-    pub global_orderbook: Account<'info, GlobalOrderBookState>,
+    pub global_orderbook: Account<'info, OrderBookState>,
 }
 
 #[event]

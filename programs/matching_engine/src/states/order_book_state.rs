@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 #[derive(InitSpace)]
-pub struct GlobalOrderBookState {
+pub struct OrderBookState {
     pub authority: Pubkey,
     
     // Encrypted OrderBook stored on-chain
@@ -23,6 +23,3 @@ pub struct GlobalOrderBookState {
     
     pub bump: u8,
 }
-
-// Keep old name for backwards compatibility if needed
-pub type OrderBookState = GlobalOrderBookState;

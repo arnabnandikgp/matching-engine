@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
 use crate::ID_CONST;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
-use crate::states::GlobalOrderBookState;
+use crate::states::OrderBookState;
 #[callback_accounts("match_orders")]
 #[derive(Accounts)]
 pub struct MatchOrdersCallback<'info> {
@@ -14,7 +14,7 @@ pub struct MatchOrdersCallback<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
     
     #[account(mut)]
-    pub global_orderbook: Account<'info, GlobalOrderBookState>,
+    pub global_orderbook: Account<'info, OrderBookState>,
 }
 
 #[event]
