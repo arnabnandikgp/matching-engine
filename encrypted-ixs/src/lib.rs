@@ -302,21 +302,59 @@ mod circuits {
         user_1: u64,
         user_2: u64,
         user_3: u64,
+        // user_pubkey: [u8; 32],
         order_type: u8,
         timestamp: u64,
     ) -> (Enc<Mxe, OrderBook>, bool, u8, u8) {
         let sensitive = sensitive_ctxt.to_arcis();
         let mut order_book = orderbook_ctxt.to_arcis();
 
-        let mut user_pubkey = [0u8; 32];
-        user_pubkey[0..8].copy_from_slice(&user_0.to_le_bytes());
-        user_pubkey[8..16].copy_from_slice(&user_1.to_le_bytes());
-        user_pubkey[16..24].copy_from_slice(&user_2.to_le_bytes());
-        user_pubkey[24..32].copy_from_slice(&user_3.to_le_bytes());
+        // Build user_pubkey by extracting bytes from the four u64 values
+        let mut temp_0 = user_0;
+        let mut temp_1 = user_1;
+        let mut temp_2 = user_2;
+        let mut temp_3 = user_3;
+        
+        let b0 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b1 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b2 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b3 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b4 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b5 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b6 = (temp_0 % 256) as u8; temp_0 >>= 8;
+        let b7 = (temp_0 % 256) as u8;
+        
+        let b8 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b9 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b10 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b11 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b12 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b13 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b14 = (temp_1 % 256) as u8; temp_1 >>= 8;
+        let b15 = (temp_1 % 256) as u8;
+        
+        let b16 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b17 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b18 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b19 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b20 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b21 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b22 = (temp_2 % 256) as u8; temp_2 >>= 8;
+        let b23 = (temp_2 % 256) as u8;
+        
+        let b24 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b25 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b26 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b27 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b28 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b29 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b30 = (temp_3 % 256) as u8; temp_3 >>= 8;
+        let b31 = (temp_3 % 256) as u8;
 
         let order = Order {
             order_id,
-            user_pubkey,
+            user_pubkey: [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15,
+                         b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31],
             amount: sensitive.amount,
             price: sensitive.price,
             order_type,
