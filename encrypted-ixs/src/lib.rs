@@ -10,7 +10,7 @@ mod circuits {
     #[derive(Copy, Clone)]
     pub struct Order {
         pub order_id: u64,
-        pub user_vault_pubkey: [u8; 32],
+        pub user_pubkey: [u8; 32],
         pub amount: u64,
         pub price: u64,
         pub order_type: u8,
@@ -21,7 +21,7 @@ mod circuits {
         pub fn empty() -> Self {
             Order {
                 order_id: 0,
-                user_vault_pubkey: [0u8; 32],
+                user_pubkey: [0u8; 32],
                 amount: 0,
                 price: 0,
                 order_type: 0,
@@ -298,7 +298,7 @@ mod circuits {
         sensitive_ctxt: Enc<Shared, SensitiveOrderData>,
         orderbook_ctxt: Enc<Mxe, OrderBook>,
         order_id: u64,
-        user_vault_pubkey: [u8; 32],
+        user_pubkey: [u8; 32],
         order_type: u8,
         timestamp: u64,
     ) -> (Enc<Mxe, OrderBook>, bool, u8, u8) {
@@ -307,7 +307,7 @@ mod circuits {
 
         let order = Order {
             order_id,
-            user_vault_pubkey,
+            user_pubkey,
             amount: sensitive.amount,
             price: sensitive.price,
             order_type,
@@ -362,8 +362,8 @@ mod circuits {
                         match_idx as u8,
                         MatchedOrder {
                             match_id: next_match_id,
-                            buyer_vault_pubkey: buyer.user_vault_pubkey,
-                            seller_vault_pubkey: seller.user_vault_pubkey,
+                            buyer_vault_pubkey: buyer.user_pubkey,
+                            seller_vault_pubkey: seller.user_pubkey,
                             quantity: fill_quantity,
                             execution_price,
                         },
