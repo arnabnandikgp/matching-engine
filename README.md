@@ -83,21 +83,19 @@ On-chain program that manages state and orchestrates MPC operations:
 
 ## Installation
 
+NOTE: Istall arcium cli for your system from the following page: https://docs.arcium.com/developers/installation 
+
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone github.com/arnabnandikgp/matching-engine
 cd matching_engine
 
 # Install dependencies
 yarn install
 
 # Build Anchor program
-anchor build
+arcium build
 
-# Build encrypted circuits
-cd encrypted-ixs
-cargo build-sbf
-cd ..
 ```
 
 ## Local Development
@@ -108,30 +106,6 @@ cd ..
 arcium localnet
 ```
 
-### Deploy Program
-```bash
-# Set Solana to localnet
-solana config set --url localhost
-
-# Generate keypair (if needed)
-solana-keygen new
-
-# Airdrop SOL for deployment
-solana airdrop 10
-
-# Build and deploy
-anchor build
-anchor deploy
-```
-
-### Initialize Program
-```bash
-# Initialize program with backend authority and token mints
-anchor run initialize
-
-# Upload computation definitions (encrypted circuits)
-anchor run init-comp-defs
-```
 
 ## Testing
 
@@ -224,7 +198,7 @@ let pubkey = reconstruct_from_chunks(chunk0, chunk1, chunk2, chunk3);
 - Matching rate limit: 15 seconds between triggers
 
 ### Account PDAs
-- GlobalOrderBookState: `[b"order_book_state"]`
+- OrderBookState: `[b"order_book_state"]`
 - OrderAccount: `[b"order", order_id, user_pubkey]`
 - VaultState: `[b"vault", mint, user_pubkey]`
 
@@ -255,7 +229,7 @@ let pubkey = reconstruct_from_chunks(chunk0, chunk1, chunk2, chunk3);
 
 ## License
 
-ISC
+GPL v3
 
 ## Contributing
 
