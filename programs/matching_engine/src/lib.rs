@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
 
 const COMP_DEF_OFFSET_MATCH_ORDERS: u32 = comp_def_offset("match_orders");
+const COMP_DEF_OFFSET_SUBMIT_ORDER: u32 = comp_def_offset("submit_order");
 
 declare_id!("DQ5MR2aPD9sPBN9ukVkhwrAn8ADxpkAE5AHUnXxKEvn1");
 
@@ -16,6 +17,11 @@ pub use errors::ErrorCode;
 pub mod matching_engine {
     use super::*;
     use crate::errors::ErrorCode;
+
+    pub fn init_submit_order_comp_def(ctx: Context<InitSubmitOrderCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        Ok(())
+    }
 
     pub fn init_match_orders_comp_def(ctx: Context<InitMatchOrdersCompDef>) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
