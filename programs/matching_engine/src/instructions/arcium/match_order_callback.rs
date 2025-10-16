@@ -14,7 +14,7 @@ pub struct MatchOrdersCallback<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
     
     #[account(mut)]
-    pub global_orderbook: Account<'info, OrderBookState>,
+    pub orderbook_state: Account<'info, OrderBookState>,
 }
 
 #[event]

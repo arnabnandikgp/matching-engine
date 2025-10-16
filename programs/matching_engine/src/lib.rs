@@ -68,15 +68,15 @@ pub mod matching_engine {
         let new_orderbook_nonce = orderbook_encrypted.nonce;
         let orderbook_ciphertext = orderbook_encrypted.ciphertexts;
         
-        let global_orderbook = &mut ctx.accounts.global_orderbook;
-        global_orderbook.orderbook_nonce = new_orderbook_nonce;
+        let orderbook_state = &mut ctx.accounts.orderbook_state;
+        orderbook_state.orderbook_nonce = new_orderbook_nonce;
         
         // Copy orderbook ciphertext to account storage
         for (i, chunk) in orderbook_ciphertext.iter().enumerate() {
             let start = i * 32;
             let end = start + 32;
-            if end <= global_orderbook.orderbook_data.len() {
-                global_orderbook.orderbook_data[start..end].copy_from_slice(chunk);
+            if end <= orderbook_state.orderbook_data.len() {
+                orderbook_state.orderbook_data[start..end].copy_from_slice(chunk);
             }
         }
         
@@ -120,19 +120,19 @@ pub mod matching_engine {
         let new_orderbook_nonce = orderbook_encrypted.nonce;
         let orderbook_ciphertext = orderbook_encrypted.ciphertexts;
         
-        let global_orderbook = &mut ctx.accounts.global_orderbook;
-        global_orderbook.orderbook_nonce = new_orderbook_nonce;
+        let orderbook_state = &mut ctx.accounts.orderbook_state;
+        orderbook_state.orderbook_nonce = new_orderbook_nonce;
         
         // Copy ciphertext to account storage
         for (i, chunk) in orderbook_ciphertext.iter().enumerate() {
             let start = i * 32;
             let end = start + 32;
-            if end <= global_orderbook.orderbook_data.len() {
-                global_orderbook.orderbook_data[start..end].copy_from_slice(chunk);
+            if end <= orderbook_state.orderbook_data.len() {
+                orderbook_state.orderbook_data[start..end].copy_from_slice(chunk);
             }
         }
         
-        global_orderbook.total_orders_processed += 1;
+        orderbook_state.total_orders_processed += 1;
         
         let order_account = &mut ctx.accounts.order_account;
         if success {

@@ -9,7 +9,7 @@ use anchor_spl::token_interface::Mint;
 use arcium_anchor::prelude::*;
 const VAULT_SEED: &[u8] = b"vault";
 use arcium_client::idl::arcium::types::CallbackAccount;
-const GLOBAL_ORDERBOOK_SEED: &[u8] = b"order_book_state";
+const ORDERBOOK_SEED: &[u8] = b"order_book_state";
 
 use crate::ID;
 use crate::ID_CONST;
@@ -93,8 +93,8 @@ pub fn submit_order(
         Argument::PlaintextU64(price),  // Client encrypts this
 
         // Enc<Mxe, OrderBook>
-        Argument::PlaintextU128(ctx.accounts.global_orderbook.orderbook_nonce),
-        Argument::Account(ctx.accounts.global_orderbook.key(), 8 + 32, 1302),
+        Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
+        Argument::Account(ctx.accounts.orderbook_state.key(), 8 + 32, 1302),
 
         Argument::PlaintextU64(order_id),
         // Pass [u8; 32] as 4x u64 chunks // TODO how to pass pubkey
@@ -112,7 +112,7 @@ pub fn submit_order(
         None,
         vec![SubmitOrderCallback::callback_ix(&[
             CallbackAccount {
-                pubkey: ctx.accounts.global_orderbook.key(),
+                pubkey: ctx.accounts.orderbook_state.key(),
                 is_writable: true,
             },
             CallbackAccount {
@@ -208,10 +208,10 @@ pub struct SubmitOrder<'info> {
 
     #[account(
         mut,
-        seeds = [GLOBAL_ORDERBOOK_SEED],
-        bump = global_orderbook.bump,
+        seeds = [ORDERBOOK_SEED],
+        bump = orderbook_state.bump,
     )]
-    pub global_orderbook: Account<'info, OrderBookState>,
+    pub orderbook_state: Account<'info, OrderBookState>,
 }
 
 #[event]

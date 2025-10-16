@@ -16,5 +16,5 @@ pub struct SubmitOrderCallback<'info> {
     pub order_account: Account<'info, OrderAccount>,
 
     #[account(mut)]
-    pub global_orderbook: Account<'info, OrderBookState>,
+    pub orderbook_state: Account<'info, OrderBookState>,
 }
