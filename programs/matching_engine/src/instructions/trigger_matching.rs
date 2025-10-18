@@ -5,6 +5,7 @@ use crate::states::*;
 use crate::instructions::*;
 use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
 use crate::SignerAccount;
+use crate::MatchOrdersCallback;
 use arcium_client::idl::arcium::types::CallbackAccount;
 
 const ORDERBOOK_SEED: &[u8] = b"order_book_state";
@@ -42,17 +43,17 @@ pub fn trigger_matching(
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
 
+    let callback_accounts = vec![CallbackAccount {
+        pubkey: ctx.accounts.orderbook_state.key(),
+        is_writable: true,
+    }];
+
     queue_computation(
         ctx.accounts,
         computation_offset,
         args,
         None,
-        vec![SubmitOrderCallback::callback_ix(&[
-            CallbackAccount {
-                pubkey: ctx.accounts.orderbook_state.key(),
-                is_writable: true,
-            }
-        ])],
+        vec![MatchOrdersCallback::callback_ix(&callback_accounts)],
     )?;
 
     msg!("Matching triggered. Computation offset: {}", computation_offset);

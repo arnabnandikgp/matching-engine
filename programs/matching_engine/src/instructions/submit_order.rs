@@ -1,19 +1,19 @@
 use crate::errors::ErrorCode;
-use crate::instructions::*;
 use crate::states::*;
 use crate::SignerAccount;
-use crate::COMP_DEF_OFFSET_MATCH_ORDERS;
+use crate::SubmitOrderCallback;
+use crate::COMP_DEF_OFFSET_SUBMIT_ORDER;
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 use anchor_spl::token_interface::Mint;
 use arcium_anchor::prelude::*;
 const VAULT_SEED: &[u8] = b"vault";
+const VAULT_STATE_SEED: &[u8] = b"vault_state";
 use arcium_client::idl::arcium::types::CallbackAccount;
 const ORDERBOOK_SEED: &[u8] = b"order_book_state";
 
 use crate::ID;
 use crate::ID_CONST;
-
 
 fn pubkey_to_u64_chunks(pubkey_bytes: &[u8; 32]) -> [u64; 4] {
     [
@@ -41,11 +41,7 @@ pub fn submit_order(
     };
 
     // Check vault has sufficient funds
-    let vault = if order_type == 0 {
-        &ctx.accounts.quote_vault
-    } else {
-        &ctx.accounts.base_vault
-    };
+    let vault = &ctx.accounts.vault;
 
     let locked_total = ctx.accounts.vault_state.locked_amount;
 
@@ -53,6 +49,9 @@ pub fn submit_order(
         .amount
         .checked_sub(locked_total)
         .ok_or(ErrorCode::InsufficientBalance)?;
+
+    msg!("available: {}", available);
+    msg!("locked_amount: {}", locked_amount);
 
     require!(available >= locked_amount, ErrorCode::InsufficientBalance);
 
@@ -85,30 +84,30 @@ pub fn submit_order(
     let user_chunks = pubkey_to_u64_chunks(&user_pubkey_bytes);
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
-    let args = vec![
+    let args = Box::new(vec![
         // Enc<Shared, SensitiveOrderData> - encrypted amount & price
         Argument::ArcisPubkey(user_enc_pubkey),
         Argument::PlaintextU128(order_nonce),
         Argument::PlaintextU64(amount), // Client encrypts this
         Argument::PlaintextU64(price),  // Client encrypts this
-
         // Enc<Mxe, OrderBook>
         Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
         Argument::Account(ctx.accounts.orderbook_state.key(), 8 + 32, 1302),
 
         Argument::PlaintextU64(order_id),
-        // Pass [u8; 32] as 4x u64 chunks // TODO how to pass pubkey
-        // ...pubkey_to_args(&vault_pubkey),
-        // ...pubkey_to_args(&base_mint_pubkey),
-        // ...pubkey_to_args(&quote_mint_pubkey),
+        // Pass [u8; 32] as 4x u64 chunks
+        Argument::PlaintextU64(user_chunks[0]),
+        Argument::PlaintextU64(user_chunks[1]),
+        Argument::PlaintextU64(user_chunks[2]),
+        Argument::PlaintextU64(user_chunks[3]),
         Argument::PlaintextU8(order_type),
         Argument::PlaintextU64(Clock::get()?.unix_timestamp as u64),
-    ];
+    ]);
 
     queue_computation(
         ctx.accounts,
         computation_offset,
-        args,
+        *args,
         None,
         vec![SubmitOrderCallback::callback_ix(&[
             CallbackAccount {
@@ -139,7 +138,6 @@ pub fn submit_order(
 pub struct SubmitOrder<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-
     #[account(
         init_if_needed,
         space = 9,
@@ -160,7 +158,7 @@ pub struct SubmitOrder<'info> {
     #[account(mut, address = derive_comp_pda!(computation_offset))]
     /// CHECK: computation_account, checked by the arcium program.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_MATCH_ORDERS))]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_SUBMIT_ORDER))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
     #[account(mut, address = derive_cluster_pda!(mxe_account))]
     pub cluster_account: Account<'info, Cluster>,
@@ -171,22 +169,16 @@ pub struct SubmitOrder<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
 
+    #[account(mut)]
+    pub base_mint: InterfaceAccount<'info, Mint>,
+
     #[account(
         mut,
         seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub base_vault: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [VAULT_SEED, quote_mint.key().as_ref(), user.key().as_ref()],
-        bump,
-    )]
-    pub quote_vault: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub base_mint: InterfaceAccount<'info, Mint>,
-    #[account(mut)]
-    pub quote_mint: InterfaceAccount<'info, Mint>,
+    pub vault: Account<'info, TokenAccount>,
+
     #[account(
         init,
         payer = user,
@@ -201,8 +193,8 @@ pub struct SubmitOrder<'info> {
     pub order_account: Account<'info, OrderAccount>,
     #[account(
         mut,
-        seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
-        bump,
+        seeds = [VAULT_STATE_SEED, base_mint.key().as_ref(), user.key().as_ref()],
+        bump = vault_state.bump,
     )]
     pub vault_state: Account<'info, VaultState>,
 

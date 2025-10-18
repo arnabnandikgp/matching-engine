@@ -4,6 +4,7 @@ use crate::states::VaultState;
 use crate::errors::ErrorCode;
 
 const VAULT_SEED: &[u8] = b"vault";
+const VAULT_STATE_SEED: &[u8] = b"vault_state";
 
 pub fn withdraw_from_vault(
     ctx: Context<WithdrawFromVault>,
@@ -57,7 +58,7 @@ pub struct WithdrawFromVault<'info> {
     pub vault_authority: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [VAULT_SEED, vault.mint.key().as_ref(), user.key().as_ref()],
+        seeds = [VAULT_STATE_SEED, vault.mint.key().as_ref(), user.key().as_ref()],
         bump,
     )]
     pub vault_state: Account<'info, VaultState>,

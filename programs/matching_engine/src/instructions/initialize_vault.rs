@@ -4,6 +4,7 @@ use anchor_spl::token::{Token, TokenAccount, Mint};
 use crate::VaultState;
 
 const VAULT_SEED: &[u8] = b"vault";
+const VAULT_STATE_SEED: &[u8] = b"vault_state";
 
 pub fn initialize_user_vault(
     ctx: Context<InitializeUserVault>,
@@ -41,7 +42,7 @@ pub struct InitializeUserVault<'info> {
         init,
         payer = user,
         space = 8 + VaultState::INIT_SPACE,
-        seeds = [VAULT_SEED, mint.key().as_ref(), user.key().as_ref()],
+        seeds = [VAULT_STATE_SEED, mint.key().as_ref(), user.key().as_ref()],
         bump,
     )]
     pub vault_state: Account<'info, VaultState>,

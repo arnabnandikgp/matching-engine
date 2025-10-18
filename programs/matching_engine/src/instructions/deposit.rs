@@ -37,12 +37,14 @@ pub struct DepositToVault<'info> {
     pub user: Signer<'info>,
     #[account(
         mut,
-        constraint = user_token_account.owner == user.key()
+        associated_token::authority = user,
+        associated_token::mint = vault.mint,
+
     )]
     pub user_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [VAULT_SEED, vault.mint.as_ref()],
+        seeds = [VAULT_SEED, vault.mint.as_ref(), user.key().as_ref()],
         bump,
     )]
     pub vault: Account<'info, TokenAccount>,
