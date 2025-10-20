@@ -4,8 +4,8 @@ use arcis_imports::*;
 mod circuits {
     use arcis_imports::*;
 
-    pub const MAX_ORDERS: usize = 10;
-    pub const MAX_MATCHES_PER_BATCH: usize = 5;
+    pub const MAX_ORDERS: usize = 5;
+    pub const MAX_MATCHES_PER_BATCH: usize = 3;
 
     #[derive(Copy, Clone)]
     pub struct Order {
@@ -273,10 +273,6 @@ mod circuits {
                 self.matches[1] = matched_order;
             } else if index == 2 {
                 self.matches[2] = matched_order;
-            } else if index == 3 {
-                self.matches[3] = matched_order;
-            } else if index == 4 {
-                self.matches[4] = matched_order;
             }
             // Add more if MAX_MATCHES_PER_BATCH > 5
         }

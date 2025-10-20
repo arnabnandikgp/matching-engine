@@ -92,7 +92,7 @@ pub fn submit_order(
         Argument::PlaintextU64(price),  // Client encrypts this
         // Enc<Mxe, OrderBook>
         Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
-        Argument::Account(ctx.accounts.orderbook_state.key(), 8 + 32, 1302),
+        Argument::Account(ctx.accounts.orderbook_state.key(), 8 + 32, 651),
 
         Argument::PlaintextU64(order_id),
         // Pass [u8; 32] as 4x u64 chunks

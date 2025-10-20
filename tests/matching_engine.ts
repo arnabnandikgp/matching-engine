@@ -31,7 +31,6 @@ import * as os from "os";
 import { expect } from "chai";
 import {
   setupUserEncryption,
-  setupBackendEncryption,
   getMXEPublicKeyWithRetry,
   generateNonce,
 } from "./helpers/encryption";
@@ -155,14 +154,14 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       user2.publicKey,
       token1Mint,
       mintAuthority,
-      1000
+      1000*LAMPORTS_PER_SOL
     );
     const ata4 = await createATAAndMintTokens(
       provider,
       user2.publicKey,
       token2Mint,
       mintAuthority,
-      1000
+      1000*LAMPORTS_PER_SOL
     );
     console.log("Minted tokens to users\n");
 

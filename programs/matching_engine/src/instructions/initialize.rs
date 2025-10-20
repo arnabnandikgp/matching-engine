@@ -6,7 +6,7 @@ use crate::{states::OrderBookState};
 pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint: Pubkey, quote_mint: Pubkey) -> Result<()> {
     let order_book_state = &mut ctx.accounts.order_book_state;
     order_book_state.authority = ctx.accounts.authority.key();
-    order_book_state.orderbook_data = [0u8; 1302];
+    order_book_state.orderbook_data = [0u8; 651];
     order_book_state.orderbook_nonce = 0;
     order_book_state.last_match_timestamp = Clock::get()?.unix_timestamp;
     order_book_state.bump = ctx.bumps.order_book_state;

@@ -210,7 +210,7 @@ pub struct SubmitOrderCallback<'info> {
 
 #[event]
 pub struct MatchResultEvent {
-    pub match_ciphertext: Box<[[u8; 32]; 336]>,  // Updated to match actual size
+    pub match_ciphertext: Box<[[u8; 32]; 202]>,  // Updated to match actual size
     pub match_nonce: u128,                    //  Backend needs this to decrypt!
     pub orderbook_nonce: u128,                // New orderbook nonce
     pub timestamp: i64,

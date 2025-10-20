@@ -6,7 +6,7 @@ pub struct OrderBookState {
     pub authority: Pubkey,
     
     // Encrypted OrderBook stored on-chain
-    pub orderbook_data: [u8; 1302],   // Serialized Enc<Mxe, OrderBook> ciphertext
+    pub orderbook_data: [u8; 651],   // Serialized Enc<Mxe, OrderBook> ciphertext
     pub orderbook_nonce: u128,  
     
     // Backend encryption key (for receiving match results)
