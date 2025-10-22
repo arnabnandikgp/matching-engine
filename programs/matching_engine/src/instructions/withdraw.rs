@@ -61,7 +61,7 @@ pub struct WithdrawFromVault<'info> {
         seeds = [VAULT_STATE_SEED, vault.mint.key().as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub vault_state: Account<'info, VaultState>,
+    pub vault_state: Box<Account<'info, VaultState>>,
     pub token_program: Program<'info, Token>,
 }
 

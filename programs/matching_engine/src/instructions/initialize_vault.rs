@@ -45,7 +45,7 @@ pub struct InitializeUserVault<'info> {
         seeds = [VAULT_STATE_SEED, mint.key().as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub vault_state: Account<'info, VaultState>,
+    pub vault_state: Box<Account<'info, VaultState>>,
     
     /// CHECK: PDA authority for vault
     #[account(

@@ -145,3 +145,25 @@ export async function createATAAndMintTokens(
   await mintTo(provider.connection, authority, mint, ata.address, authority, amount);
   return ata.address;
 }
+
+/**
+ * Derive SignerAccount PDA
+ */
+export function deriveSignerAccountPDA(
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from("signer_account")], programId);
+}
+
+
+// pub const ARCIUM_FEE_POOL_ACCOUNT_ADDRESS: Pubkey = Pubkey::new_from_array([
+//   94, 87, 49, 175, 232, 200, 92, 37, 140, 243, 194, 109, 249, 141, 31, 66, 59, 91, 113, 165, 232,
+//   167, 54, 30, 164, 219, 3, 225, 61, 227, 94, 8,
+// ]);
+
+export function deriveArciumFeePoolAccountAddress(): PublicKey {
+  return new PublicKey([
+    94, 87, 49, 175, 232, 200, 92, 37, 140, 243, 194, 109, 249, 141, 31, 66, 59, 91, 113, 165, 232,
+    167, 54, 30, 164, 219, 3, 225, 61, 227, 94, 8,
+  ])
+}

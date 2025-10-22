@@ -149,3 +149,64 @@ export function readKpJson(path: string): Keypair {
   const file = fs.readFileSync(path);
   return Keypair.fromSecretKey(new Uint8Array(JSON.parse(file.toString())));
 }
+
+
+/**
+ * Initialize init_order_book computation definition
+ */
+export async function initInitOrderBookCompDef(
+  program: Program<MatchingEngine>,
+  owner: Keypair,
+  uploadRawCircuit: boolean = false,
+  offchainSource: boolean = false
+): Promise<string> {
+  const baseSeedCompDefAcc = getArciumAccountBaseSeed(
+    "ComputationDefinitionAccount"
+  );
+  const offset = getCompDefAccOffset("init_order_book");
+
+  const compDefPDA = PublicKey.findProgramAddressSync(
+    [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
+    getArciumProgAddress()
+  )[0];
+
+  console.log("Init order book comp def PDA:", compDefPDA.toBase58());
+
+  const sig = await program.methods
+    .initOrderBookCompDef()
+    .accounts({
+      compDefAccount: compDefPDA,
+      payer: owner.publicKey,
+      mxeAccount: getMXEAccAddress(program.programId),
+    })
+    .signers([owner])
+    .rpc({
+      commitment: "confirmed",
+    });
+
+  console.log("Init init_order_book computation definition tx:", sig);
+
+  const provider = program.provider as anchor.AnchorProvider;
+
+  if (uploadRawCircuit) {
+    const rawCircuit = fs.readFileSync("build/init_order_book.arcis");
+    await uploadCircuit(
+      provider,
+      "init_order_book",
+      program.programId,
+      rawCircuit,
+      true
+    );
+  } else if (!offchainSource) {
+    const finalizeTx = await buildFinalizeCompDefTx(
+      provider,
+      Buffer.from(offset).readUInt32LE(),
+      program.programId
+    );
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    finalizeTx.recentBlockhash = latestBlockhash.blockhash;
+    finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+    return sig;
+  }
+}

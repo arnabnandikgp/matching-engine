@@ -37,7 +37,7 @@ pub fn trigger_matching(
         Argument::Account(
             orderbook_state.key(),
             8 + 32,  
-            651
+            651  // 372 ciphertexts * 32 bytes
         ),
     ];
 
@@ -77,7 +77,7 @@ pub struct TriggerMatching<'info> {
     )]
     pub sign_pda_account: Account<'info, SignerAccount>,
     #[account(address = derive_mxe_pda!())]
-    pub mxe_account: Account<'info, MXEAccount>,
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
     #[account(mut, address = derive_mempool_pda!())]
     /// CHECK: mempool_account, checked by the arcium program.
     pub mempool_account: UncheckedAccount<'info>,
@@ -88,11 +88,11 @@ pub struct TriggerMatching<'info> {
     /// CHECK: computation_account, checked by the arcium program.
     pub computation_account: UncheckedAccount<'info>,
     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_MATCH_ORDERS))]
-    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
     #[account(mut, address = derive_cluster_pda!(mxe_account))]
-    pub cluster_account: Account<'info, Cluster>,
+    pub cluster_account: Box<Account<'info, Cluster>>,
     #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
-    pub pool_account: Account<'info, FeePool>,
+    pub pool_account: Box<Account<'info, FeePool>>,
     #[account(address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
@@ -102,7 +102,7 @@ pub struct TriggerMatching<'info> {
         seeds = [ORDERBOOK_SEED],
         bump = orderbook_state.bump,
     )]
-    pub orderbook_state: Account<'info, OrderBookState>,
+    pub orderbook_state: Box<Account<'info, OrderBookState>>,
 }
 
 #[event]

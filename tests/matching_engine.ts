@@ -26,6 +26,9 @@ import {
   getComputationAccAddress,
   deserializeLE,
   x25519,
+  getArciumProgramId,
+  getClockAccAddress,
+  RescueCipher,
 } from "@arcium-hq/client";
 import * as os from "os";
 import { expect } from "chai";
@@ -45,10 +48,13 @@ import {
   airdrop,
   deriveVaultPDA,
   createATAAndMintTokens,
+  deriveSignerAccountPDA,
+  deriveArciumFeePoolAccountAddress,
 } from "./helpers/accounts";
 import {
   initSubmitOrderCompDef,
   initMatchOrdersCompDef,
+  initInitOrderBookCompDef,
   readKpJson,
 } from "./helpers/computation";
 
@@ -413,6 +419,66 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
   describe("Suite 1.3: Order Submission", () => {
     it("Should submit buy order", async () => {
+
+
+
+      let submitOrderCompDefSig;
+      try {
+        submitOrderCompDefSig = await initSubmitOrderCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+        console.log("Submit order comp def sig:", submitOrderCompDefSig);
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Submit order comp def already exists, skipping...");
+          submitOrderCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(submitOrderCompDefSig).to.exist;
+
+
+      let matchOrdersCompDefSig;
+      try {
+        matchOrdersCompDefSig = await initMatchOrdersCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+        console.log("Match orders comp def sig:", matchOrdersCompDefSig);
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Match orders comp def already exists, skipping...");
+          matchOrdersCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(matchOrdersCompDefSig).to.exist;
+
+      let initOrderBookCompDefSig;
+      try {
+        initOrderBookCompDefSig = await initInitOrderBookCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Init order book comp def already exists, skipping...");
+          initOrderBookCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(initOrderBookCompDefSig).to.exist;
+
       // 1. Setup encryption
       const { publicKey, cipher } = await setupUserEncryption(
         provider,
@@ -442,7 +508,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([user1])
-        .rpc();
+        .rpc({ commitment: "confirmed" });
 
       console.log("Vault initialized");
 
@@ -459,15 +525,14 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           vault: vaultPDA,
         })
         .signers([user1])
-        .rpc();
+        .rpc({ commitment: "confirmed" });
 
       console.log("Tokens deposited to vault");
 
       // 2. Prepare order (using smaller values to reduce stack usage)
-      const amount = 1;
-      const price = 1;
-      const nonce = generateNonce();
-      const submitOrderComputationOffset = new BN(randomBytes(8));
+      const amount =10;
+      const price = 5;
+      const submitOrderComputationOffset = new anchor.BN(randomBytes(8), "hex");;
 
       // 3. Read initial nonce
       const before = await getOrderBookState(program);
@@ -476,7 +541,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       // 4. Listen for event
       const eventPromise = awaitEvent("orderProcessedEvent");
 
-      const orderId = new BN(Date.now());
+      const orderId = new BN(12);
 
       const [orderAccountPDA] = deriveOrderAccountPDA(
         orderId,
@@ -484,22 +549,67 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         program.programId
       );
 
+      console.log("=== submitOrder Accounts ===");
+      console.log("User:", user1.publicKey.toBase58());
+      console.log("Vault PDA:", vaultPDA.toBase58());
+      console.log("Vault State PDA:", vaultStatePDA.toBase58());
+      console.log("Order Account PDA:", orderAccountPDA.toBase58());
+      console.log("Orderbook PDA:", OrderbookPDA.toBase58());
+      console.log("program id", program.programId.toBase58());
+
+
+
+      // verify if arcium accounts are correct
+      console.log("arcium fee pool account", deriveArciumFeePoolAccountAddress().toBase58());
+      console.log("arcium clock account", getClockAccAddress().toBase58());
+      console.log("arcium program id", getArciumProgramId().toBase58());
+      console.log("arcium cluster pubkey", arciumEnv.arciumClusterPubkey.toBase58());
+      console.log("arcium mxe account", getMXEAccAddress(program.programId).toBase58());
+      console.log("arcium mempool account", getMempoolAccAddress(program.programId).toBase58());
+      console.log("arcium executing pool account", getExecutingPoolAccAddress(program.programId).toBase58());
+      console.log("arcium comp def account", getCompDefAccAddress(program.programId, Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()).toBase58());
+      console.log("arcium computation account", getComputationAccAddress(program.programId, submitOrderComputationOffset).toBase58());
+
+      // Get MXE public key
+      const mxePublicKey = await getMXEPublicKeyWithRetry(
+        provider as anchor.AnchorProvider,
+        program.programId
+      );
+
+      // Generate encryption keys for User1
+      const User1PrivateKey = x25519.utils.randomSecretKey();
+      const User1PublicKey = x25519.getPublicKey(User1PrivateKey);
+      const User1SharedSecret = x25519.getSharedSecret(
+        User1PrivateKey,
+        mxePublicKey
+      );
+      const User1Cipher = new RescueCipher(User1SharedSecret);
+
+      const User1Nonce = randomBytes(16);
+      const User1Ciphertext = User1Cipher.encrypt(
+        [BigInt(amount), BigInt(price)],
+        User1Nonce
+      );
+  
       // 5. Submit order
       await program.methods
         .submitOrder(
-          new BN(amount),
-          new BN(price),
+          Array.from(User1Ciphertext[0]),
+          Array.from(User1Ciphertext[1]),
+          Array.from(User1PublicKey),
           0, // buy
           submitOrderComputationOffset,
           orderId,
-          Array.from(publicKey),
-          new BN(deserializeLE(nonce).toString())
+          new anchor.BN(deserializeLE(User1Nonce).toString())
         )
         .accountsPartial({
           computationAccount: getComputationAccAddress(
             program.programId,
             submitOrderComputationOffset
           ),
+          user: user1.publicKey,
+          signPdaAccount: deriveSignerAccountPDA(program.programId),
+          poolAccount: deriveArciumFeePoolAccountAddress(),
           clusterAccount: arciumEnv.arciumClusterPubkey,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -510,15 +620,17 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("submit_order")
             ).readUInt32LE()
           ),
+          clockAccount: getClockAccAddress(),
+          systemProgram: SystemProgram.programId, 
+          arciumProgram: getArciumProgramId(),        
           baseMint: baseMint,
           vault: vaultPDA,
           orderAccount: orderAccountPDA,
           vaultState: vaultStatePDA,
           orderbookState: OrderbookPDA,
-          user: user1.publicKey,
         })
         .signers([user1])
-        .rpc();
+        .rpc({ commitment: "confirmed" });
 
       console.log("meow meow meow meow")
 
