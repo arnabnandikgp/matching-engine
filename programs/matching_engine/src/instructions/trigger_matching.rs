@@ -37,7 +37,7 @@ pub fn trigger_matching(
         Argument::Account(
             orderbook_state.key(),
             8 + 32,  
-            651  // 372 ciphertexts * 32 bytes
+            52 * 32, 
         ),
     ];
 

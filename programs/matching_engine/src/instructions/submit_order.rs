@@ -1,3 +1,4 @@
+
 use crate::errors::ErrorCode;
 use crate::states::*;
 use crate::SignerAccount;
@@ -7,9 +8,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 use anchor_spl::token_interface::Mint;
 use arcium_anchor::prelude::*;
+use arcium_client::idl::arcium::types::CallbackAccount;
+
 const VAULT_SEED: &[u8] = b"vault";
 const VAULT_STATE_SEED: &[u8] = b"vault_state";
-use arcium_client::idl::arcium::types::CallbackAccount;
 const ORDERBOOK_SEED: &[u8] = b"order_book_state";
 
 use crate::ID;
@@ -67,66 +69,58 @@ pub fn submit_order(
 
     // Populate order account
     let order_account = &mut ctx.accounts.order_account;
-    msg!("1");
     order_account.order_id = order_id;
-    msg!("2");
     order_account.user = ctx.accounts.user.key();
-    msg!("3");
-
-    
     order_account.order_type = order_type;
-    // order_account.locked_amount = locked_amount;
     order_account.status = 0; // Pending
     order_account.filled_amount = 0;
     order_account.timestamp = Clock::get()?.unix_timestamp;
     order_account.bump = ctx.bumps.order_account;
 
-    // Updating the vault state
-    // ctx.accounts.vault_state.locked_amount = ctx
-    //     .accounts
-    //     .vault_state
-    //     .locked_amount
-    //     .checked_add(locked_amount)
-    //     .ok_or(ErrorCode::Overflow)?;
+    // Update vault state
     ctx.accounts.vault_state.num_active_orders = ctx
         .accounts
         .vault_state
         .num_active_orders
         .checked_add(1)
         .ok_or(ErrorCode::Overflow)?;
-    msg!("12");
 
+    // Get user pubkey as bytes
     let user_pubkey_bytes = ctx.accounts.user.key().to_bytes();
     msg!("user_pubkey_bytes: {:?}", user_pubkey_bytes);
     let user_chunks = pubkey_to_u64_chunks(&user_pubkey_bytes);
 
-    msg!("13");
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
-    let args = Box::new(vec![
-        // Enc<Shared, SensitiveOrderData> - encrypted amount & price
+    
+    let args = vec![        // Enc<Shared, SensitiveOrderData> - encrypted amount & price
         Argument::ArcisPubkey(user_pubkey),
         Argument::PlaintextU128(order_nonce),
         Argument::EncryptedU64(amount), // Client encrypts this
         Argument::EncryptedU64(price),  // Client encrypts this
         // Enc<Mxe, OrderBook>
+
         Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
-        Argument::Account(ctx.accounts.orderbook_state.key(), 8 + 32, 651),  // 372 ciphertexts * 32 bytes
+        Argument::Account(
+            ctx.accounts.orderbook_state.key(),
+            8 + 32,      // Offset: discriminator(8) + authority(32) = 40
+            52 * 32,     // Size: 41 chunks × 32 bytes = 1312 bytes
+        ),
 
         Argument::PlaintextU64(order_id),
-        // Pass [u8; 32] as 4x u64 chunks
-        Argument::PlaintextU64(user_chunks[0]),
-        Argument::PlaintextU64(user_chunks[1]),
-        Argument::PlaintextU64(user_chunks[2]),
-        Argument::PlaintextU64(user_chunks[3]),
+        // // Pass [u8; 32] as 4x u64 chunks
+        // Argument::PlaintextU64(user_chunks[0]),
+        // Argument::PlaintextU64(user_chunks[1]),
+        // Argument::PlaintextU64(user_chunks[2]),
+        // Argument::PlaintextU64(user_chunks[3]),
         Argument::PlaintextU8(order_type),
         Argument::PlaintextU64(Clock::get()?.unix_timestamp as u64),
-    ]);
+    ];
 
     queue_computation(
         ctx.accounts,
         computation_offset,
-        *args,
+        args,
         None,
         vec![SubmitOrderCallback::callback_ix(&[
             CallbackAccount {
@@ -139,6 +133,9 @@ pub fn submit_order(
             },
         ])],
     )?;
+
+    // msg!("Order submitted to MPC. Order ID: {}, Amount: {}, Price: {}", order_id,);
+    // panic!("test");
 
     Ok(())
 }
@@ -199,7 +196,7 @@ pub struct SubmitOrder<'info> {
     pub vault: Account<'info, TokenAccount>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = user,
         space = 8 + OrderAccount::INIT_SPACE,
         seeds = [
